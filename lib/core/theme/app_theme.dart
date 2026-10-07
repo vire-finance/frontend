@@ -6,15 +6,27 @@ import 'app_text_styles.dart';
 abstract final class AppTheme {
   static ThemeData get light {
     const colorScheme = ColorScheme.light(
-      primary: AppColors.blue500,
-      onPrimary: AppColors.white,
-      secondary: AppColors.orange500,
-      onSecondary: AppColors.grey900, 
+      primary: AppColors.blue400,
+      onPrimary: AppColors.basicWhite,
+      primaryContainer: AppColors.blue50, 
+      onPrimaryContainer: AppColors.blue700,
+
+      secondary: AppColors.blue500,
+      onSecondary: AppColors.basicWhite,
+
+      tertiary: AppColors.orange400,
+      onTertiary: AppColors.basicWhite,
+
       error: AppColors.red600,
-      onError: AppColors.white,
-      surface: AppColors.white,
-      onSurface: AppColors.grey900,
-      outline: AppColors.grey100,
+      onError: AppColors.basicWhite,
+      errorContainer: AppColors.red50,
+      onErrorContainer: AppColors.red600,
+
+      surface: AppColors.white, 
+      onSurface: AppColors.grey800,
+      onSurfaceVariant: AppColors.grey400, 
+      outline: AppColors.grey100, 
+      outlineVariant: AppColors.blue100,
     );
 
     final textTheme = TextTheme(
@@ -34,15 +46,15 @@ abstract final class AppTheme {
       labelMedium: AppTextStyles.l4,
       labelSmall: AppTextStyles.l5,
     ).apply(
-      bodyColor: AppColors.grey900,
-      displayColor: AppColors.grey900,
+      bodyColor: AppColors.grey800,
+      displayColor: AppColors.grey800,
     );
 
     return ThemeData(
       useMaterial3: true,
       fontFamily: AppTextStyles.fontFamily,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.white,
+      scaffoldBackgroundColor: AppColors.basicWhite,
       textTheme: textTheme,
       dividerColor: AppColors.grey100,
     );
