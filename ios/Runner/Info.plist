@@ -14,6 +14,10 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>vire</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Vire uses the camera to scan QRIS codes and capture supporting request documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Vire uses selected images to attach supporting documents to payment requests.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

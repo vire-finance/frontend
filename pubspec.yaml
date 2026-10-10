@@ -13,6 +13,7 @@ dependencies:
   go_router: ^14.0.0         
   flutter_riverpod: ^2.5.1      
  
+  google_sign_in: ^7.2.0
   dio: ^5.4.0                   
   flutter_secure_storage: ^9.0.0 
 
@@ -28,6 +29,9 @@ dependencies:
   csv: ^6.0.0
   path_provider: ^2.1.3
   share_plus: ^9.0.0
+  firebase_core: ^3.4.0
+  firebase_messaging: ^15.1.0
+  file_picker: ^8.0.7
  
 dev_dependencies:
   flutter_test:
@@ -40,7 +44,10 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
- 
+    - assets/images/Regular Images/
+    - assets/images/Logo Bank/
+    - assets/images/Logo E-Wallet/
+    - assets/images/Profiles/
   fonts:
     - family: InterTight
       fonts:
