@@ -46,8 +46,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.calls, 1);
     expect(find.text('IDR 50.000,00'), findsNWidgets(2));
-    expect(find.text('25.0% of monthly limit'), findsOneWidget);
-    expect(find.text('IDR 200.000,00'), findsOneWidget);
+    expect(find.text('25.0% of the IDR 200.000,00 monthly limit'), findsOneWidget);
+    expect(find.text('Monthly Limit'), findsNothing);
     await tester.drag(find.byType(ListView), const Offset(0, -450));
     await tester.pumpAndSettle();
     expect(find.text('Quick Summary'), findsOneWidget);

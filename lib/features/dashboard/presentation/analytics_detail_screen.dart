@@ -99,19 +99,8 @@ class _AnalyticsDetailScreenState extends State<AnalyticsDetailScreen> {
             Text(
                 utilization == null
                     ? 'Monthly limit is not available.'
-                    : '${utilization.toStringAsFixed(1)}% of monthly limit',
+                    : '${utilization.toStringAsFixed(1)}% of the ${formatIdrInput(limit!)} monthly limit',
                 style: const TextStyle(fontSize: 13, color: AppColors.grey500))
-          ]),
-          const SizedBox(height: 14),
-          _panel([
-            const Text('Monthly Limit',
-                style: TextStyle(color: AppColors.grey700)),
-            const SizedBox(height: 6),
-            Text(limit == null ? '—' : formatIdrInput(limit),
-                style: const TextStyle(
-                    color: AppColors.blue900,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18))
           ]),
           const SizedBox(height: 18),
           _panel([
