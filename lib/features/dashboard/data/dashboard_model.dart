@@ -47,13 +47,15 @@ class PaymentRequest {
       required this.createdAt,
       required this.description,
       required this.amount,
-      required this.status});
+      required this.status,
+      this.category});
   final String id;
   final String reference;
   final String createdAt;
   final String description;
   final int amount;
   final String status;
+  final String? category;
 }
 
 class DashboardTransaction {

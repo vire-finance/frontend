@@ -17,7 +17,7 @@ import 'analytics_detail_screen.dart';
 import 'balance_details_screen.dart';
 import 'widgets/balance_card.dart';
 import '../../document/presentation/purchase_requests_summary.dart';
-import '../../document/presentation/purchase_requests_screen.dart';
+import '../../../shared/widgets/notification_sheet.dart';
 import 'widgets/spending_analytics_card.dart';
 import 'widgets/transactions_preview_section.dart';
 
@@ -100,7 +100,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                                         _provider.insightsRepository)),
                           ),
                           const SizedBox(height: 16),
-                          PurchaseRequestsSummary(onChanged:_provider.load),
+                          PurchaseRequestsSummary(onChanged: _provider.load),
                           const SizedBox(height: 16),
                           TransactionsPreviewSection(
                             transactions: data.transactions,
@@ -194,65 +194,8 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     }
   }
 
-  Future<void> _showNotifications() async {
-    try {
-      final response = await ApiClient.instance.dio.get<Map<String, dynamic>>(
-          '/notifications',
-          queryParameters: {'limit': 50});
-      final rows = response.data?['items'] as List<dynamic>? ?? const [];
-      if (!mounted) return;
-      await showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          builder: (context) => SafeArea(
-              child: SizedBox(
-                  height: MediaQuery.sizeOf(context).height * 0.65,
-                  child: ListView(padding: const EdgeInsets.all(16), children: [
-                    const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Notifications',
-                            style: TextStyle(
-                                color: AppColors.blue900,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18))),
-                    if (rows.isEmpty)
-                      const Padding(
-                          padding: EdgeInsets.all(22),
-                          child: Text('No notifications yet.',
-                              textAlign: TextAlign.center)),
-                    for (final raw in rows)
-                      Builder(builder: (context) {
-                        final notification =
-                            Map<String, dynamic>.from(raw as Map);
-                        return ListTile(
-                          leading: Icon(
-                              notification['is_read'] == true
-                                  ? Icons.notifications_none
-                                  : Icons.notifications_active_outlined,
-                              color: AppColors.blue500),
-                          title: Text('${notification['title'] ?? ''}'),
-                          subtitle: Text('${notification['message'] ?? ''}'),
-                          onTap: () async {
-                            await ApiClient.instance.dio.patch(
-                                '/notifications/${notification['id']}/read');
-                            final id = notification['request_id'];
-                            if (context.mounted && id != null) {
-                              Navigator.pop(context);
-                              await Navigator.push(
-                                  context,
-                                  MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          PurchaseRequestDetailScreen(
-                                              id: '$id', owner: true)));
-                            }
-                          },
-                        );
-                      }),
-                  ]))));
-    } catch (error) {
-      if (mounted) _showUnavailable(apiErrorMessage(error));
-    }
-  }
+  Future<void> _showNotifications() =>
+      showNotificationSheet(context, owner: true);
 }
 
 class _DashboardHeader extends StatelessWidget {

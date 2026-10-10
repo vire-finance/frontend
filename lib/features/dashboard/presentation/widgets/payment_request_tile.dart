@@ -37,18 +37,19 @@ class PaymentRequestTile extends StatelessWidget {
                             const TextStyle(color: Colors.white, fontSize: 10)))
               ]),
               const SizedBox(height: 5),
-              Text('${request.createdAt} | ${request.description}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, height: 1.4)),
-              const SizedBox(height: 4),
-              Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(formatDashboardAmount(request.amount),
-                      style: const TextStyle(
-                          color: AppColors.grey700,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700))),
+              Row(children: [
+                Expanded(
+                    child: Text('${request.createdAt} | ${request.description}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, height: 1.4))),
+                const SizedBox(width: 8),
+                Text(formatDashboardAmount(request.amount),
+                    style: const TextStyle(
+                        color: AppColors.grey700,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700)),
+              ]),
             ]),
           )));
 }

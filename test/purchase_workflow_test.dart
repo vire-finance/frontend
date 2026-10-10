@@ -84,7 +84,7 @@ void main() {
     await tester.pumpWidget(
         const MaterialApp(home: Scaffold(body: PurchaseRequestsSummary())));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Purchase Requests'));
+    await tester.tap(find.byTooltip('View all requests'));
     await tester.pumpAndSettle();
     expect(find.text('Your Documents'), findsOneWidget);
     expect(find.byType(AppNavbar), findsOneWidget);
@@ -109,17 +109,24 @@ void main() {
     expect(find.text('Pending Payment'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('employee Payment opens the direct form and bank transfer',
+  testWidgets('employee Payment shares the owner menu and transfer form',
       (tester) async {
+    tester.view.physicalSize = const Size(480, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const MaterialApp(home: EmployeePaymentScreen()));
     await tester.pumpAndSettle();
-    expect(find.text('Scan QRIS'), findsOneWidget);
-    expect(find.text('Show Code'), findsOneWidget);
+    expect(find.text('Also Pay With'), findsOneWidget);
+    expect(find.text('Show QR Code'), findsOneWidget);
     expect(find.text('Pending Payment'), findsNothing);
-    await tester.tap(find.text('Transfer to Bank / E-Wallet'));
+    await tester.tap(find.text('Transfer'));
     await tester.pumpAndSettle();
     expect(find.text('Bank'), findsOneWidget);
     expect(find.text('E-Wallet'), findsOneWidget);
+    expect(find.textContaining('Choose Which Card to Pay With', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Transaction Title', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Expense Category', findRichText: true), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
   test('direct bank payment sends recipient without an approval request',

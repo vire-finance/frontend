@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/theme/app_colors.dart';
 import 'owner/owner_document_list_screen.dart';
+import '../../dashboard/data/dashboard_model.dart';
+import '../../dashboard/presentation/widgets/pending_requests_section.dart';
+import 'purchase_requests_screen.dart';
 
 class PurchaseRequestsSummary extends StatefulWidget {
   const PurchaseRequestsSummary({this.onChanged, super.key});
@@ -13,7 +15,7 @@ class PurchaseRequestsSummary extends StatefulWidget {
 }
 
 class _PurchaseRequestsSummaryState extends State<PurchaseRequestsSummary> {
-  int _pending = 0, _overdue = 0;
+  List<Map<String, dynamic>> _pending = [];
   Timer? _timer;
   bool _busy = false;
   @override
@@ -39,14 +41,14 @@ class _PurchaseRequestsSummaryState extends State<PurchaseRequestsSummary> {
           '/fund-requests',
           queryParameters: {'limit': 200});
       final rows = res.data?['items'] as List? ?? [];
-      if (mounted)
+      if (mounted) {
         setState(() {
-          _pending =
-              rows.where((r) => r['status'] == 'PENDING_APPROVAL').length;
-          _overdue = rows
-              .where((r) => r['workflow_status'] == 'RECEIPT_OVERDUE')
-              .length;
+          _pending = rows
+              .where((r) => r['status'] == 'PENDING_APPROVAL')
+              .map((r) => Map<String, dynamic>.from(r as Map))
+              .toList();
         });
+      }
     } catch (_) {
     } finally {
       _busy = false;
@@ -54,24 +56,38 @@ class _PurchaseRequestsSummaryState extends State<PurchaseRequestsSummary> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-      child: ListTile(
-          leading:
-              const Icon(Icons.assignment_outlined, color: AppColors.blue500),
-          title: const Text('Purchase Requests',
-              style: TextStyle(
-                  color: AppColors.blue500, fontWeight: FontWeight.bold)),
-          subtitle: Text(
-              '$_pending pending approval · $_overdue receipts overdue',
-              style: TextStyle(
-                  color: _overdue > 0 ? AppColors.red500 : AppColors.grey600)),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () async {
-            await Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                    builder: (_) => const OwnerDocumentListScreen()));
-            await _load();
-            await widget.onChanged?.call();
-          }));
+  Widget build(BuildContext context) => PendingRequestsSection(
+      requestCount: _pending.length,
+      requests: _pending
+          .map((row) => PaymentRequest(
+                id: '${row['id']}',
+                reference:
+                    '${row['reference'] ?? 'REQ-${row['id'].toString().split('').take(8).join().toUpperCase()}'}',
+                createdAt: '${row['created_at'] ?? row['needed_by'] ?? ''}'
+                    .split('T')
+                    .first,
+                description:
+                    '${row['request_type'] ?? 'Purchase'}-${row['explanation'] ?? row['party_name'] ?? ''} | ${row['category'] ?? ''}',
+                category: row['category'] as String?,
+                amount: (num.tryParse('${row['total_amount']}') ?? 0).round(),
+                status: 'Waiting',
+              ))
+          .toList(),
+      onRequestTap: (request) async {
+        await Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+                builder: (_) =>
+                    PurchaseRequestDetailScreen(id: request.id, owner: true)));
+        await _load();
+        await widget.onChanged?.call();
+      },
+      onViewAll: () async {
+        await Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+                builder: (_) => const OwnerDocumentListScreen()));
+        await _load();
+        await widget.onChanged?.call();
+      });
 }

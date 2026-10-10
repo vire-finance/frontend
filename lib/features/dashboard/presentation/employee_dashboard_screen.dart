@@ -4,6 +4,7 @@ import '../../../core/services/push_notification_service.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/bottom_nav_shell.dart';
+import '../../../shared/widgets/notification_sheet.dart';
 import '../../document/data/employee_request_model.dart';
 import '../../document/data/employee_request_repository.dart';
 import '../../document/presentation/employee/employee_document_list_screen.dart';
@@ -118,6 +119,12 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                       ),
                       Image.asset('assets/images/Regular Images/Logo - V.png',
                           width: 30, height: 30),
+                      IconButton(
+                          tooltip: 'Notifications',
+                          icon: const Icon(Icons.notifications,
+                              color: AppColors.blue500),
+                          onPressed: () =>
+                              showNotificationSheet(context, owner: false)),
                     ]),
                     const SizedBox(height: 14),
                     BalanceCard(
@@ -127,8 +134,11 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                           setState(() => _hideBalance = !_hideBalance),
                       onDetails: () => _selectDestination(1),
                       onPayment: () async {
-                        await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const EmployeePaymentScreen()));
-                        if(mounted)await _loadData();
+                        await Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                                builder: (_) => const EmployeePaymentScreen()));
+                        if (mounted) await _loadData();
                       },
                     ),
                     const SizedBox(height: 16),
