@@ -50,7 +50,10 @@ class EmployeeRequestRepository extends ChangeNotifier {
           final notification = Map<String, dynamic>.from(item as Map);
           final requestId = notification['request_id'];
           if (requestId != null &&
-              '${notification['title']}'.toLowerCase().contains('tolak')) {
+              ('${notification['title']}'.toLowerCase().contains('tolak') ||
+                  '${notification['title']}'
+                      .toLowerCase()
+                      .contains('rejected'))) {
             _unreadNotificationByRequest['$requestId'] =
                 '${notification['id']}';
           }

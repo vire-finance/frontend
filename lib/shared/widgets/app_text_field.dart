@@ -81,6 +81,7 @@ Widget _withLabel(InputDecoration decoration, Widget field,
 class AppFormField extends StatelessWidget {
   const AppFormField(
       {this.controller,
+      this.focusNode,
       this.decoration = const AppInputDecoration(),
       this.validator,
       this.keyboardType,
@@ -95,6 +96,7 @@ class AppFormField extends StatelessWidget {
       this.onFieldSubmitted,
       super.key});
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final InputDecoration decoration;
   final FormFieldValidator<String>? validator;
   final TextInputType? keyboardType;
@@ -109,6 +111,7 @@ class AppFormField extends StatelessWidget {
       decoration,
       TextFormField(
         controller: controller,
+        focusNode: focusNode,
         decoration: decoration,
         validator: validator,
         keyboardType: keyboardType,

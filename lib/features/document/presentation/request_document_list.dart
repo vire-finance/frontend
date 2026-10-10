@@ -5,6 +5,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/money_formatter.dart';
 import '../../../shared/widgets/app_search_bar.dart';
 import 'purchase_requests_screen.dart';
+import '../../../shared/widgets/bottom_nav_shell.dart';
+import '../../dashboard/presentation/owner_dashboard_screen.dart';
+import '../../dashboard/presentation/employee_dashboard_screen.dart';
+import '../../pocket/presentation/owner/owner_pocket_list_screen.dart';
+import '../../pocket/presentation/employee/employee_pocket_list_screen.dart';
+import '../../history/presentation/history_screen.dart';
+import '../../profile/presentation/profile_screen.dart';
 
 class RequestDocumentList extends StatefulWidget {
   const RequestDocumentList({required this.owner, super.key});
@@ -163,6 +170,25 @@ class _RequestDocumentListState extends State<RequestDocumentList>
             ])));
   }
 
+  void _navigate(int index) {
+    if (index == 2) return;
+    final Widget screen = switch (index) {
+      0 => widget.owner
+          ? const OwnerDashboardScreen()
+          : const EmployeeDashboardScreen(),
+      1 => widget.owner
+          ? const OwnerPocketListScreen()
+          : const EmployeePocketListScreen(),
+      3 => const HistoryScreen(),
+      4 => widget.owner
+          ? const OwnerProfileScreen()
+          : const EmployeeProfileScreen(),
+      _ => RequestDocumentList(owner: widget.owner),
+    };
+    Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => screen), (_) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final rows = _rows.where((row) {
@@ -184,6 +210,11 @@ class _RequestDocumentListState extends State<RequestDocumentList>
     }
     return Scaffold(
         backgroundColor: AppColors.basicWhite,
+        bottomNavigationBar: AppNavbar(
+          items: widget.owner ? vireNavigationItems : employeeNavigationItems,
+          selectedIndex: 2,
+          onDestinationSelected: _navigate,
+        ),
         body: SafeArea(
             bottom: false,
             child: RefreshIndicator(

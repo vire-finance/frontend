@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
-import 'request_document_list.dart';
+import 'owner/owner_document_list_screen.dart';
 
 class PurchaseRequestsSummary extends StatefulWidget {
   const PurchaseRequestsSummary({this.onChanged, super.key});
@@ -70,7 +70,7 @@ class _PurchaseRequestsSummaryState extends State<PurchaseRequestsSummary> {
             await Navigator.push(
                 context,
                 MaterialPageRoute<void>(
-                    builder: (_) => const RequestDocumentList(owner: true)));
+                    builder: (_) => const OwnerDocumentListScreen()));
             await _load();
             await widget.onChanged?.call();
           }));

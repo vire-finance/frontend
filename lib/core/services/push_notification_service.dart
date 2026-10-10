@@ -131,7 +131,9 @@ class PushNotificationService {
     }
     _dismissBanner();
     final approved = title.toLowerCase().contains('approved');
-    final rejected = title.toLowerCase().contains('rejected');
+    final rejected = title.toLowerCase().contains('rejected') ||
+        title.toLowerCase().contains('ditolak');
+    final incoming = title.startsWith('Request Payment from ');
     _banner = OverlayEntry(
       builder: (_) => Positioned(
         top: 0,
@@ -175,19 +177,37 @@ class PushNotificationService {
                           horizontal: 16, vertical: 16),
                       child: Row(
                         children: [
-                          Icon(
-                            approved
-                                ? Icons.verified
-                                : rejected
-                                    ? Icons.cancel
-                                    : Icons.notifications_active,
-                            size: 40,
-                            color: approved
-                                ? const Color(0xFF35B440)
-                                : rejected
-                                    ? const Color(0xFFE34E58)
-                                    : const Color(0xFF315DCE),
-                          ),
+                          if (rejected)
+                            const SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: Stack(children: [
+                                  Icon(Icons.file_copy_rounded,
+                                      size: 48, color: Color(0xFFCC0000)),
+                                  Positioned(
+                                      right: 7,
+                                      top: 9,
+                                      child: Icon(Icons.close_rounded,
+                                          size: 23, color: Colors.white)),
+                                ]))
+                          else
+                            Icon(
+                              approved
+                                  ? Icons.verified
+                                  : rejected
+                                      ? Icons.cancel
+                                      : incoming
+                                          ? Icons.credit_card_rounded
+                                          : Icons.notifications_active,
+                              size: 40,
+                              color: approved
+                                  ? const Color(0xFF35B440)
+                                  : rejected
+                                      ? const Color(0xFFE34E58)
+                                      : incoming
+                                          ? const Color(0xFFFF9629)
+                                          : const Color(0xFF315DCE),
+                            ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -197,9 +217,11 @@ class PushNotificationService {
                                 Text(
                                   approved
                                       ? 'Your Request Has Been Approved!'
-                                      : title,
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                                      : rejected
+                                          ? 'Your Request Was Rejected'
+                                          : title,
+                                  style: TextStyle(
+                                    fontSize: rejected ? 18 : 14,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFF192F62),
                                   ),
@@ -207,13 +229,18 @@ class PushNotificationService {
                                 if (body.isNotEmpty) ...[
                                   const SizedBox(height: 3),
                                   Text(
-                                    approved &&
-                                            body.contains(
-                                                'melakukan pembayaran')
-                                        ? 'Proceed to payment on the pending transaction.'
-                                        : body,
-                                    style: const TextStyle(
-                                      fontSize: 13,
+                                    rejected
+                                        ? 'Please check the comment given to your request.'
+                                        : approved &&
+                                                body.contains(
+                                                    'melakukan pembayaran')
+                                            ? 'Proceed to payment on the pending transaction.'
+                                            : body,
+                                    textAlign: rejected
+                                        ? TextAlign.justify
+                                        : TextAlign.start,
+                                    style: TextStyle(
+                                      fontSize: rejected ? 16 : 13,
                                       height: 1.35,
                                       color: Color(0xFF536BB1),
                                     ),
