@@ -1,3 +1,4 @@
+import '../../shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
@@ -57,6 +58,14 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: AppColors.basicWhite,
       textTheme: textTheme,
       dividerColor: AppColors.grey100,
+      inputDecorationTheme: const InputDecorationTheme(
+        filled: true, fillColor: AppColors.inputFill,
+        hintStyle: AppInputStyles.hint, labelStyle: AppInputStyles.label,
+        contentPadding: AppInputStyles.padding, isDense: true,
+        border: AppInputStyles.border, enabledBorder: AppInputStyles.border,
+        focusedBorder: AppInputStyles.border, disabledBorder: AppInputStyles.border,
+        errorBorder: AppInputStyles.errorBorder, focusedErrorBorder: AppInputStyles.errorBorder,
+      ),
     );
   }
 }
