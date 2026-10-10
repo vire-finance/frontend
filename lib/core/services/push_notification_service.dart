@@ -7,6 +7,13 @@ import '../../features/document/presentation/purchase_requests_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
+bool shouldDisplayRequestNotification(String title, String? role) {
+  final normalizedTitle = title.toLowerCase();
+  final rejected = normalizedTitle.contains('rejected') ||
+      normalizedTitle.contains('ditolak');
+  return !rejected || role == 'EMPLOYEE';
+}
+
 class PushNotificationService {
   PushNotificationService._();
   static final instance = PushNotificationService._();
@@ -123,7 +130,10 @@ class PushNotificationService {
     }
   }
 
-  void _show(String title, String body, String? requestId) {
+  Future<void> _show(String title, String body, String? requestId) async {
+    if (!shouldDisplayRequestNotification(title, await ApiClient.instance.role)) {
+      return;
+    }
     final overlay = appNavigatorKey.currentState?.overlay;
     if (overlay == null ||
         WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
