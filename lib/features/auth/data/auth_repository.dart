@@ -10,6 +10,7 @@ class AuthRepository {
   static final instance = AuthRepository._();
   final _api = ApiClient.instance;
   Future<void>? _googleInitialization;
+  Future<void>? _googleWebSdkInitialization;
 
   Future<void> _initializeGoogle() async {
     final config = await _api.dio.get<Map<String, dynamic>>(
@@ -22,19 +23,31 @@ class AuthRepository {
       throw StateError(
           'Login Google belum aktif. Isi GOOGLE_CLIENT_ID di backend terlebih dahulu.');
     }
-    await GoogleSignIn.instance.initialize(serverClientId: clientId);
+    if (kIsWeb) {
+      // The Web SDK permits initialization only once, including failed starts.
+      await (_googleWebSdkInitialization ??=
+          GoogleSignIn.instance.initialize(clientId: clientId));
+    } else {
+      await GoogleSignIn.instance.initialize(serverClientId: clientId);
+    }
   }
 
+  Future<void> initializeGoogle() async {
+    try {
+      await (_googleInitialization ??= _initializeGoogle());
+    } catch (_) {
+      // A failed config request may be retried; the Web SDK future stays cached.
+      _googleInitialization = null;
+      rethrow;
+    }
+  }
+
+  // Android uses the interactive result; Web uses the rendered button's events.
   Future<Map<String, dynamic>?> loginWithGoogle() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       throw StateError('Login Google saat ini tersedia di aplikasi Android.');
     }
-    try {
-      await (_googleInitialization ??= _initializeGoogle());
-    } catch (_) {
-      _googleInitialization = null;
-      rethrow;
-    }
+    await initializeGoogle();
     GoogleSignInAccount account;
     try {
       account = await GoogleSignIn.instance.authenticate();
@@ -42,10 +55,14 @@ class AuthRepository {
       if (error.code == GoogleSignInExceptionCode.canceled) return null;
       rethrow;
     }
-    final token = account.authentication.idToken;
-    if (token == null || token.isEmpty) {
-      throw StateError(
-          'Token Google tidak tersedia. Periksa OAuth Client ID dan SHA-1 Android.');
+    return loginWithGoogleIdToken(account.authentication.idToken);
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogleIdToken(String? token) async {
+    if (token == null || token.trim().isEmpty) {
+      throw StateError(kIsWeb
+          ? 'Token Google tidak tersedia. Coba login Google kembali.'
+          : 'Token Google tidak tersedia. Periksa OAuth Client ID dan SHA-1 Android.');
     }
     final response = await _api.dio.post<Map<String, dynamic>>('/auth/google',
         data: {'id_token': token}, options: Options(extra: {'skipAuth': true}));

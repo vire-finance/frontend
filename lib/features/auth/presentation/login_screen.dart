@@ -1,5 +1,6 @@
 import '../../../shared/widgets/app_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -10,6 +11,7 @@ import '../data/auth_repository.dart';
 import 'package:flutter/services.dart';
 import '../../setup/presentation/role_selection_screen.dart';
 import 'widgets/account_created_modal.dart';
+import 'widgets/google_web_sign_in_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -237,15 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final response = await AuthRepository.instance.loginWithGoogle();
       if (!mounted || response == null) return;
-      final role = response['role'] as String?;
-      final Widget destination = role == 'OWNER'
-          ? const OwnerDashboardScreen()
-          : role == 'EMPLOYEE'
-              ? const EmployeeDashboardScreen()
-              : const RoleSelectionScreen();
-      Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => destination),
-          (route) => false);
+      _navigateAfterGoogle(response);
     } catch (error) {
       if (mounted) _showMessage(apiErrorMessage(error));
     } finally {
@@ -253,7 +247,41 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _submitGoogleIdToken(String? token) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final response =
+          await AuthRepository.instance.loginWithGoogleIdToken(token);
+      if (mounted) _navigateAfterGoogle(response);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _navigateAfterGoogle(Map<String, dynamic> response) {
+    final role = response['role'] as String?;
+    final Widget destination = role == 'OWNER'
+        ? const OwnerDashboardScreen()
+        : role == 'EMPLOYEE'
+            ? const EmployeeDashboardScreen()
+            : const RoleSelectionScreen();
+    Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => destination), (route) => false);
+  }
+
   Widget _googleButton() {
+    if (kIsWeb) {
+      return GoogleWebSignInButton(
+        initialize: AuthRepository.instance.initializeGoogle,
+        onCredential: _submitGoogleIdToken,
+        onError: (error) {
+          if (mounted) _showMessage(apiErrorMessage(error));
+        },
+        isRegister: _isRegister,
+        enabled: !_isSubmitting,
+      );
+    }
     return SizedBox(
       width: double.infinity,
       height: 48,
