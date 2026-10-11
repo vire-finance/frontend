@@ -2,20 +2,70 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 abstract final class AppInputStyles {
-  static const value = TextStyle(fontSize: 14, color: AppColors.grey800);
+  // Keep the existing dense dropdown's content height and shared input padding.
+  static const contentHeight = 24.0;
+  static const horizontalPadding = 14.0;
+  static const verticalPadding = 13.0;
+  static const fieldHeight = contentHeight + verticalPadding * 2;
+  static const valueFontSize = 14.0;
+  static const hintFontSize = 12.0;
+  static const value = TextStyle(
+    fontFamily: AppTextStyles.fontFamily,
+    fontSize: valueFontSize,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    height: contentHeight / valueFontSize,
+    leadingDistribution: TextLeadingDistribution.even,
+    color: AppColors.grey800,
+  );
   static const label = TextStyle(fontSize: 14, color: AppColors.blue500);
-  static const hint = TextStyle(fontSize: 12, color: AppColors.grey300);
+  static const hint = TextStyle(
+    fontFamily: AppTextStyles.fontFamily,
+    fontSize: hintFontSize,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+    height: contentHeight / hintFontSize,
+    leadingDistribution: TextLeadingDistribution.even,
+    color: AppColors.grey300,
+  );
+  static const strut = StrutStyle(
+    fontFamily: AppTextStyles.fontFamily,
+    fontSize: valueFontSize,
+    fontWeight: FontWeight.w400,
+    height: contentHeight / valueFontSize,
+    forceStrutHeight: true,
+  );
+  static const radius = BorderRadius.all(Radius.circular(13));
   static const border = OutlineInputBorder(
-    borderRadius: BorderRadius.all(Radius.circular(13)),
+    borderRadius: radius,
     borderSide: BorderSide(color: AppColors.blue500),
   );
   static const errorBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.all(Radius.circular(13)),
+    borderRadius: radius,
     borderSide: BorderSide(color: AppColors.red500),
   );
-  static const padding = EdgeInsets.symmetric(horizontal: 14, vertical: 13);
+  static const padding = EdgeInsets.symmetric(
+    horizontal: horizontalPadding,
+    vertical: verticalPadding,
+  );
+  static const dropdownArrow = Icon(
+    Icons.arrow_drop_down,
+    size: contentHeight,
+    color: AppColors.grey500,
+  );
+  // Match the existing Material dropdown's outlined-field suffix layout.
+  static const dropdownEndPadding = 12.0;
+  static const dropdownSuffix = Padding(
+    padding: EdgeInsetsDirectional.only(end: dropdownEndPadding),
+    child: dropdownArrow,
+  );
+  static const dropdownSuffixConstraints = BoxConstraints(
+    minWidth: contentHeight + dropdownEndPadding,
+    minHeight: contentHeight,
+  );
 }
 
 class AppInputDecoration extends InputDecoration {
@@ -34,6 +84,7 @@ class AppInputDecoration extends InputDecoration {
           fillColor: AppColors.inputFill,
           isDense: true,
           contentPadding: AppInputStyles.padding,
+          constraints: const BoxConstraints(minHeight: AppInputStyles.fieldHeight),
           border: AppInputStyles.border,
           enabledBorder: AppInputStyles.border,
           focusedBorder: AppInputStyles.border,
@@ -125,6 +176,8 @@ class AppFormField extends StatelessWidget {
         textInputAction: textInputAction,
         onFieldSubmitted: onFieldSubmitted,
         style: AppInputStyles.value,
+        strutStyle: AppInputStyles.strut,
+        textAlignVertical: TextAlignVertical.center,
       ),
       requiredField: validator != null);
 }
@@ -166,6 +219,8 @@ class AppInputField extends StatelessWidget {
         onChanged: onChanged,
         textCapitalization: textCapitalization,
         style: AppInputStyles.value,
+        strutStyle: AppInputStyles.strut,
+        textAlignVertical: TextAlignVertical.center,
       ));
 }
 
@@ -195,11 +250,71 @@ class AppDropdownField<T> extends StatelessWidget {
         items: items,
         onChanged: onChanged,
         decoration: decoration,
-        hint: hint,
-        icon: icon,
+        hint: hint ??
+            (decoration.hintText == null
+                ? null
+                : Text(decoration.hintText!,
+                    style: AppInputStyles.hint,
+                    strutStyle: AppInputStyles.strut,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis)),
+        icon: icon ?? AppInputStyles.dropdownArrow,
+        iconSize: AppInputStyles.contentHeight,
         validator: validator,
         style: AppInputStyles.value,
         isExpanded: true,
+        isDense: true,
+        alignment: AlignmentDirectional.centerStart,
+        padding: EdgeInsets.zero,
       ),
       requiredField: validator != null);
+}
+
+/// Shared input appearance for selectors that open a sheet instead of a menu.
+class AppPickerField extends StatelessWidget {
+  const AppPickerField({
+    this.value,
+    required this.onTap,
+    this.decoration = const AppInputDecoration(),
+    super.key,
+  });
+
+  final String? value;
+  final VoidCallback? onTap;
+  final InputDecoration decoration;
+
+  @override
+  Widget build(BuildContext context) => _withLabel(
+        decoration,
+        InkWell(
+          onTap: onTap,
+          borderRadius: AppInputStyles.radius,
+          child: InputDecorator(
+            decoration: decoration.copyWith(
+              enabled: onTap != null,
+              suffixIcon: AppInputStyles.dropdownSuffix,
+              suffixIconConstraints: AppInputStyles.dropdownSuffixConstraints,
+            ),
+            baseStyle: AppInputStyles.value,
+            textAlignVertical: TextAlignVertical.center,
+            child: ConstrainedBox(
+              constraints:
+                  const BoxConstraints(minHeight: AppInputStyles.contentHeight),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                heightFactor: 1,
+                child: Text(
+                  value ?? decoration.hintText ?? '',
+                  style: value == null
+                      ? AppInputStyles.hint
+                      : AppInputStyles.value,
+                  strutStyle: AppInputStyles.strut,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 }

@@ -15,6 +15,8 @@ import '../data/payment_model.dart';
 import '../data/payment_repository.dart';
 import '../providers/payment_provider.dart';
 import 'choose_card_sheet.dart';
+import '../data/payment_destination.dart';
+import 'payment_destination_fields.dart';
 import 'expense_category_field.dart';
 import 'show_qr_code_screen.dart';
 import 'qr_scanner_screen.dart';
@@ -40,7 +42,7 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  final _methodController = TextEditingController();
+  PaymentDestination? _destination;
   final _pocketRepository = PocketRepository.instance;
   final _paymentProvider = PaymentProvider(PaymentRepository.instance);
   VireCardData? _selectedCard;
@@ -49,6 +51,14 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
   TransactionData? _transaction;
   bool _submitting = false;
   String? _paymentKey, _paymentSignature;
+
+  void _changeKind(PaymentKind kind) {
+    if (_submitting || kind == _kind) return;
+    setState(() {
+      _kind = kind;
+      _destination = null;
+    });
+  }
 
   @override
   void initState() {
@@ -63,7 +73,7 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
   void dispose() {
     _titleController.dispose();
     _amountController.dispose();
-    _methodController.dispose();
+
     _paymentProvider.dispose();
     super.dispose();
   }
@@ -150,30 +160,24 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
                                         icon: Icons.account_balance,
                                         label: 'Bank',
                                         selected: _kind == PaymentKind.bank,
-                                        onTap: () => setState(
-                                            () => _kind = PaymentKind.bank))),
+                                        onTap: () =>
+                                            _changeKind(PaymentKind.bank))),
                                 const SizedBox(width: 12),
                                 Expanded(
                                     child: _ModeCard(
                                         icon: Icons.account_balance_wallet,
                                         label: 'E-Wallet',
                                         selected: _kind == PaymentKind.eWallet,
-                                        onTap: () => setState(() =>
-                                            _kind = PaymentKind.eWallet))),
+                                        onTap: () =>
+                                            _changeKind(PaymentKind.eWallet))),
                               ]),
                               const SizedBox(height: 18),
-                              _FormLabel(
-                                  _kind == PaymentKind.bank
-                                      ? 'Payment Method'
-                                      : 'E-Wallet Method',
-                                  required: true),
-                              const SizedBox(height: 8),
-                              _InputField(
-                                  controller: _methodController,
-                                  hint: _kind == PaymentKind.bank
-                                      ? 'Enter bank and account details'
-                                      : 'Enter e-wallet and account details',
-                                  validator: _required),
+                              PaymentDestinationFields(
+                                  key: ValueKey(_kind),
+                                  bank: _kind == PaymentKind.bank,
+                                  enabled: !_submitting,
+                                  onChanged: (destination) =>
+                                      _destination = destination),
                               const SizedBox(height: 18),
                             ] else if (widget.scannedCode != null) ...[
                               Container(
@@ -298,8 +302,8 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
         title: _titleController.text.trim(),
         amount: parseIdrInput(_amountController.text)!,
         sourceCard: _selectedCard!,
-        destinationMethod:
-            widget.transfer ? _methodController.text.trim() : null,
+        destinationMethod: widget.transfer ? _destination?.display : null,
+        destination: widget.transfer ? _destination : null,
         scannedCode: widget.scannedCode,
       );
       final signature = [
@@ -308,7 +312,7 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
         draft.title,
         draft.category,
         draft.kind.name,
-        draft.destinationMethod
+        draft.destination?.toJson().toString() ?? draft.destinationMethod
       ].toString();
       if (_paymentSignature != signature) {
         _paymentSignature = signature;
@@ -402,7 +406,7 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
                               : draft.kind == PaymentKind.eWallet
                                   ? 'E_WALLET'
                                   : 'QRIS',
-                          recipientAccount: draft.destinationMethod,
+                          destination: draft.destination,
                           idempotencyKey: paymentKey);
                   await _pocketRepository.load().catchError((_) {});
                 } catch (error) {
@@ -489,28 +493,13 @@ class _CardSelector extends StatelessWidget {
   final bool cardsAvailable;
   final VoidCallback? onTap;
   @override
-  Widget build(BuildContext context) => InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(13),
-      child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-              color: AppColors.inputFill,
-              border: Border.all(color: AppColors.blue500),
-              borderRadius: BorderRadius.circular(13)),
-          child: Row(children: [
-            Expanded(
-                child: Text(
-                    card == null
-                        ? (cardsAvailable
-                            ? 'Click here to choose'
-                            : 'No cards available')
-                        : '${card!.name}  •••• ${card!.lastFour}',
-                    style: TextStyle(
-                        color: card == null
-                            ? AppColors.grey300
-                            : AppColors.grey700,
-                        fontSize: 12))),
-            const Icon(Icons.keyboard_arrow_down, color: AppColors.blue500)
-          ])));
+  Widget build(BuildContext context) => AppPickerField(
+        value: card == null ? null : '${card!.name}  •••• ${card!.lastFour}',
+        onTap: onTap,
+        decoration: AppInputDecoration(
+          hintText: cardsAvailable
+              ? 'Click here to choose'
+              : 'No cards available',
+        ),
+      );
 }

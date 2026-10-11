@@ -16,6 +16,10 @@ class TransactionData {
     this.pocketId,
     this.failureReason,
     this.requestId,
+    this.paymentType,
+    this.destinationName,
+    this.destinationAccountNumber,
+    this.destinationBankName,
   });
 
   final String id;
@@ -34,6 +38,10 @@ class TransactionData {
   final String? pocketId;
   final String? failureReason;
   final String? requestId;
+  final String? paymentType,
+      destinationName,
+      destinationAccountNumber,
+      destinationBankName;
 }
 
 String formatTransactionAmount(int amount) {

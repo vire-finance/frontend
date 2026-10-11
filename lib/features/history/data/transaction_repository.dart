@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/network/api_client.dart';
 import '../../pocket/presentation/owner/owner_card_form.dart';
 import 'transaction_model.dart';
+import '../../payment/data/payment_destination.dart';
 
 class TransactionRepository extends ChangeNotifier {
   TransactionRepository._();
@@ -48,6 +49,7 @@ class TransactionRepository extends ChangeNotifier {
     String category = 'Others',
     String paymentMethod = 'QRIS',
     String? recipientAccount,
+    PaymentDestination? destination,
     String? idempotencyKey,
   }) async {
     final response = await _api.dio.post<Map<String, dynamic>>(
@@ -57,8 +59,10 @@ class TransactionRepository extends ChangeNotifier {
         'amount': amount,
         'description': title.trim(),
         'category': category,
-        'payment_method': paymentMethod,
-        if (recipientAccount != null) 'recipient_account': recipientAccount,
+        if (destination == null) 'payment_method': paymentMethod,
+        if (destination != null) ...destination.toJson(),
+        if (destination == null && recipientAccount != null)
+          'recipient_account': recipientAccount,
       },
       options: Options(headers: {
         'Idempotency-Key': idempotencyKey ?? ApiClient.newIdempotencyKey(),
@@ -93,6 +97,10 @@ class TransactionRepository extends ChangeNotifier {
         paymentMethod:
             '${row['payment_method'] ?? row['transaction_type'] ?? 'CARD_PAYMENT'}',
         requestId: row['fund_request_id'] as String?,
+        paymentType: row['payment_type'] as String?,
+        destinationName: row['destination_name'] as String?,
+        destinationAccountNumber: row['destination_account_number'] as String?,
+        destinationBankName: row['destination_bank_name'] as String?,
         category: row['category'] as String?,
         transactionId: '${row['id']}',
         status: '${row['status'] ?? 'APPROVED'}',

@@ -1,4 +1,5 @@
 export '../../../core/constants/expense_categories.dart';
+import 'payment_destination.dart';
 import '../../pocket/presentation/owner/owner_card_form.dart';
 
 enum PaymentKind { qris, bank, eWallet }
@@ -11,6 +12,7 @@ class PaymentDraft {
     required this.sourceCard,
     this.category = 'Others',
     this.destinationMethod,
+    this.destination,
     this.scannedCode,
     this.transactionId,
     this.completedAt,
@@ -22,6 +24,7 @@ class PaymentDraft {
   final int amount;
   final VireCardData sourceCard;
   final String? destinationMethod;
+  final PaymentDestination? destination;
   final String? scannedCode;
   final String? transactionId;
   final DateTime? completedAt;
@@ -34,6 +37,7 @@ class PaymentDraft {
         amount: amount,
         sourceCard: sourceCard,
         destinationMethod: destinationMethod,
+        destination: destination,
         scannedCode: scannedCode,
         transactionId: transactionId,
         completedAt: time,
