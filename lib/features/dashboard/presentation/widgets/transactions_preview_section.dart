@@ -112,7 +112,22 @@ class _TransactionsPreviewSectionState
                 onPressed: null,
                 icon: const Icon(Icons.chevron_left),
               ),
-              const Text('—', style: TextStyle(color: AppColors.blue500)),
+              Container(
+                width: 38,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.blue500,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Text(
+                  '1',
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
               IconButton(
                 onPressed: widget.onViewAll,
                 icon: const Icon(
