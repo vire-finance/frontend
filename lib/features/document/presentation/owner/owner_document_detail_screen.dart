@@ -119,7 +119,6 @@ class OwnerDocumentDetailScreen extends StatelessWidget {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PinScreen(
       title: 'Enter Your Pin',
       showSuccessModal: false,
-      showFingerprintButton: true,
       onPinSubmitted: (pin) async {
         try {
           final token = await AuthRepository.instance.verifyPin(pin, actionType: 'APPROVAL');
@@ -200,3 +199,4 @@ class _AnalysisBox extends StatelessWidget {
         ]),
       );
 }
+

@@ -103,18 +103,43 @@ class ApiClient {
     final refreshToken = await storage.read(key: _refreshTokenKey);
     if (refreshToken == null || refreshToken.isEmpty) return false;
     try {
-      final response = await Dio(BaseOptions(baseUrl: dio.options.baseUrl)).post<Map<String, dynamic>>(
+      final response = await Dio(BaseOptions(
+        baseUrl: dio.options.baseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        sendTimeout: const Duration(seconds: 10),
+      ))
+          .post<Map<String, dynamic>>(
         '/auth/refresh',
-        options: Options(headers: {'Authorization': 'Bearer $refreshToken'}),
+        options: Options(
+          headers: {'Authorization': 'Bearer $refreshToken'},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
       );
-      final data = response.data!;
+      final data = response.data;
+      final accessToken = data?['access_token'];
+      final newRefreshToken = data?['refresh_token'];
+      // Never persist a partial rotation: both tokens must be present.
+      if (accessToken is! String ||
+          accessToken.isEmpty ||
+          newRefreshToken is! String ||
+          newRefreshToken.isEmpty) {
+        return false;
+      }
       await saveSession(
-        accessToken: data['access_token'] as String,
-        refreshToken: data['refresh_token'] as String,
-        role: data['role'] as String?,
+        accessToken: accessToken,
+        refreshToken: newRefreshToken,
+        role: data?['role'] as String?,
       );
       return true;
+      // ignore: avoid_catching_errors
     } on DioException {
+      return false;
+    } catch (_) {
+      // Any unexpected error (e.g. malformed response) must not leave a
+      // half-written session or a stuck refresh future; callers treat
+      // false as "re-authenticate".
       return false;
     }
   }

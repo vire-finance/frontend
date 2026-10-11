@@ -284,7 +284,9 @@ class AppPickerField extends StatelessWidget {
   final InputDecoration decoration;
 
   @override
-  Widget build(BuildContext context) => _withLabel(
+  Widget build(BuildContext context) {
+    final selected = value;
+    return _withLabel(
         decoration,
         InkWell(
           onTap: onTap,
@@ -295,26 +297,30 @@ class AppPickerField extends StatelessWidget {
               suffixIcon: AppInputStyles.dropdownSuffix,
               suffixIconConstraints: AppInputStyles.dropdownSuffixConstraints,
             ),
+            // Let InputDecorator render the hint (decoration.hintText) only.
+            // Rendering the hint string as a child Text as well duplicates
+            // the visible string and breaks exact-text finders.
+            isEmpty: selected == null,
             baseStyle: AppInputStyles.value,
             textAlignVertical: TextAlignVertical.center,
-            child: ConstrainedBox(
-              constraints:
-                  const BoxConstraints(minHeight: AppInputStyles.contentHeight),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                heightFactor: 1,
-                child: Text(
-                  value ?? decoration.hintText ?? '',
-                  style: value == null
-                      ? AppInputStyles.hint
-                      : AppInputStyles.value,
-                  strutStyle: AppInputStyles.strut,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
+            child: selected == null
+                ? null
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(
+                        minHeight: AppInputStyles.contentHeight),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      heightFactor: 1,
+                      child: Text(
+                        selected,
+                        style: AppInputStyles.value,
+                        strutStyle: AppInputStyles.strut,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
           ),
-        ),
-      );
+        ));
+  }
 }

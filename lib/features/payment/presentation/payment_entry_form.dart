@@ -326,7 +326,6 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
               builder: (pinContext) => PinScreen(
                     title: 'Enter Your Pin',
                     showSuccessModal: false,
-                    showFingerprintButton: true,
                     onPinSubmitted: (pin) async {
                       try {
                         verifiedToken = await AuthRepository.instance
@@ -378,7 +377,6 @@ class _PaymentEntryFormState extends State<PaymentEntryForm> {
           builder: (_) => PinScreen(
               title: 'Enter Your Pin',
               showSuccessModal: false,
-              showFingerprintButton: true,
               onPinComplete: () {
                 final transaction = _transaction;
                 if (transaction == null) return;
@@ -503,3 +501,4 @@ class _CardSelector extends StatelessWidget {
         ),
       );
 }
+

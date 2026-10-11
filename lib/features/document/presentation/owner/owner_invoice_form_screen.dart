@@ -137,7 +137,6 @@ class _OwnerInvoiceFormScreenState extends State<OwnerInvoiceFormScreen> {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PinScreen(
       title: 'Enter Your Pin',
       showSuccessModal: false,
-      showFingerprintButton: true,
       onPinSubmitted: (pin) async {
         try {
           final token = await AuthRepository.instance.verifyPin(pin, actionType: 'APPROVAL');
@@ -178,3 +177,4 @@ class _AmountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [Expanded(child: Text(label, style: TextStyle(color: AppColors.grey700, fontSize: strong ? 13 : 12, fontWeight: strong ? FontWeight.w600 : FontWeight.w400))), Text(amount, style: TextStyle(color: AppColors.grey700, fontSize: strong ? 16 : 12, fontWeight: FontWeight.w700))]));
 }
+

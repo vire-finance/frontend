@@ -16,7 +16,6 @@ class PinScreen extends StatefulWidget {
     this.onPinComplete,
     this.onPinSubmitted,
     this.showSuccessModal = true,
-    this.showFingerprintButton = false,
     super.key,
   });
 
@@ -27,7 +26,6 @@ class PinScreen extends StatefulWidget {
   final VoidCallback? onPinComplete;
   final Future<void> Function(String pin)? onPinSubmitted;
   final bool showSuccessModal;
-  final bool showFingerprintButton;
 
   @override
   State<PinScreen> createState() => _PinScreenState();
@@ -235,11 +233,11 @@ class _PinScreenState extends State<PinScreen> {
                                 '7', '8', '9',
                                 'fingerprint', '0', '⌫',
                               ])
-                                key == 'fingerprint' && !widget.showFingerprintButton
+                                // Biometric authentication is not implemented,
+                                // so the fingerprint slot stays empty.
+                                key == 'fingerprint'
                                     ? const SizedBox.shrink()
-                                    : key == 'fingerprint'
-                                        ? _buildFingerprintKey()
-                                        : _buildKey(key),
+                                    : _buildKey(key),
                           ],
                         ),
                       ),
@@ -253,15 +251,4 @@ class _PinScreenState extends State<PinScreen> {
       ),
     );
   }
-
-  Widget _buildFingerprintKey() => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Biometric verification is not connected yet.')),
-          ),
-          borderRadius: BorderRadius.circular(20),
-          child: const Center(child: Icon(Icons.fingerprint, size: 38, color: AppColors.grey700)),
-        ),
-      );
 }
