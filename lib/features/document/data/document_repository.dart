@@ -12,12 +12,22 @@ class DocumentRepository extends ChangeNotifier {
   final _api = ApiClient.instance;
   final List<DocumentData> _documents = [];
   List<DocumentData> get documents => List.unmodifiable(_documents);
+  int _generation = 0;
+
+  /// Drops cached account data so a later session never sees it.
+  void clear() {
+    _generation++;
+    _documents.clear();
+    notifyListeners();
+  }
 
   Future<List<DocumentData>> loadDocuments() async {
+    final requestGeneration = ++_generation;
     try {
       final response = await _api.dio.get<Map<String, dynamic>>(
           '/fund-requests',
           queryParameters: {'limit': 200});
+      if (requestGeneration != _generation) return documents;
       final rows = response.data?['items'] as List<dynamic>? ?? const [];
       _documents
         ..clear()
@@ -25,28 +35,32 @@ class DocumentRepository extends ChangeNotifier {
             .map((item) => _fromApi(Map<String, dynamic>.from(item as Map))));
       return documents;
     } catch (_) {
+      if (requestGeneration != _generation) return documents;
       _documents.clear();
       rethrow;
     } finally {
-      notifyListeners();
+      if (requestGeneration == _generation) notifyListeners();
     }
   }
 
   Future<DocumentData> loadDetail(String id) async {
+    final requestGeneration = _generation;
     final response =
         await _api.dio.get<Map<String, dynamic>>('/fund-requests/$id');
     final detail = _fromApi(Map<String, dynamic>.from(response.data!));
-    add(detail);
+    if (requestGeneration == _generation) add(detail);
     return detail;
   }
 
   Future<void> rejectRequest(
       String id, String reason, String actionToken) async {
+    final requestGeneration = _generation;
     final response = await _api.dio.post<Map<String, dynamic>>(
       '/fund-requests/$id/reject',
       data: {'reason': reason},
       options: Options(headers: {'X-Action-Token': actionToken}),
     );
+    if (requestGeneration != _generation) return;
     add(_fromApi(Map<String, dynamic>.from(response.data!)));
   }
 

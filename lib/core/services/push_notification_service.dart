@@ -25,6 +25,7 @@ class PushNotificationService {
   OverlayEntry? _banner;
   final Set<String> _seen = {};
   bool _baseline = false;
+  int _epoch = 0;
   Future<void> initialize() async {
     const appId = String.fromEnvironment('FIREBASE_APP_ID'),
         apiKey = String.fromEnvironment('FIREBASE_API_KEY'),
@@ -81,6 +82,7 @@ class PushNotificationService {
 
   Future<void> sync() async {
     if (!_enabled || !await ApiClient.instance.hasSession) return;
+    _epoch++;
     try {
       await FirebaseMessaging.instance.requestPermission();
       _deviceToken = await FirebaseMessaging.instance.getToken();
@@ -91,6 +93,7 @@ class PushNotificationService {
   }
 
   Future<void> logout() async {
+    _epoch++;
     _dismissBanner();
     try {
       if (_deviceToken != null)
@@ -114,9 +117,13 @@ class PushNotificationService {
         _baseline = false;
         return;
       }
+      final epochGuard = _epoch;
       final response = await ApiClient.instance.dio.get<Map<String, dynamic>>(
           '/notifications',
           queryParameters: {'limit': 30});
+      if (epochGuard != _epoch) {
+        return;
+      }
       for (final row in (response.data?['items'] as List? ?? []).reversed) {
         final id = '${row['id']}';
         if (_seen.add(id) && _baseline && row['is_read'] != true)

@@ -5,7 +5,7 @@ import '../../../core/network/api_client.dart';
 import 'dashboard_model.dart';
 
 abstract interface class DashboardRepository {
-  Future<DashboardData> loadOwnerDashboard();
+  Future<DashboardData> loadOwnerDashboard({String? period});
 }
 
 class ApiDashboardRepository implements DashboardRepository {
@@ -13,12 +13,13 @@ class ApiDashboardRepository implements DashboardRepository {
   final ApiClient _api;
 
   @override
-  Future<DashboardData> loadOwnerDashboard() async {
+  Future<DashboardData> loadOwnerDashboard({String? period}) async {
     final responses = await Future.wait<Response<dynamic>>([
       _api.dio.get<Map<String, dynamic>>('/dashboard'),
       _api.dio.get<Map<String, dynamic>>('/dashboard/pending-requests',
           queryParameters: {'limit': 5}),
-      _api.dio.get<Map<String, dynamic>>('/dashboard/spending'),
+      _api.dio.get<Map<String, dynamic>>('/dashboard/spending',
+          queryParameters: {if (period != null) 'period': period}),
     ]);
     final summary = Map<String, dynamic>.from(responses[0].data as Map);
     final pendingData = Map<String, dynamic>.from(responses[1].data as Map);

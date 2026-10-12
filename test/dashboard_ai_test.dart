@@ -7,7 +7,7 @@ import 'package:vire/features/dashboard/providers/dashboard_provider.dart';
 
 class DashboardStub implements DashboardRepository {
   @override
-  Future<DashboardData> loadOwnerDashboard() async =>
+  Future<DashboardData> loadOwnerDashboard({String? period}) async =>
       const DashboardData(monthlyLimit: 200000);
 }
 

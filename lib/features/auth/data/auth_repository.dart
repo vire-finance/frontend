@@ -4,9 +4,14 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/services/push_notification_service.dart';
+import '../../../core/session/session_cache.dart';
 
 class AuthRepository {
-  AuthRepository._();
+  AuthRepository._() {
+    // Purge account caches whenever the local session is torn down,
+    // including 401 recovery and invalid-session paths in [ApiClient].
+    _api.onSessionInvalidated = SessionCaches.clearAll;
+  }
   static final instance = AuthRepository._();
   final _api = ApiClient.instance;
   Future<void>? _googleInitialization;
@@ -67,6 +72,7 @@ class AuthRepository {
     final response = await _api.dio.post<Map<String, dynamic>>('/auth/google',
         data: {'id_token': token}, options: Options(extra: {'skipAuth': true}));
     final data = response.data!;
+    SessionCaches.clearAll();
     await _api.saveSession(
         accessToken: data['access_token'] as String,
         refreshToken: data['refresh_token'] as String,
@@ -95,6 +101,7 @@ class AuthRepository {
     );
     final data = response.data!;
     final user = Map<String, dynamic>.from(data['user'] as Map);
+    SessionCaches.clearAll();
     await _api.saveSession(
       accessToken: data['setup_token'] as String,
       refreshToken: data['refresh_token'] as String,
@@ -111,6 +118,7 @@ class AuthRepository {
       options: Options(extra: {'skipAuth': true}),
     );
     final data = response.data!;
+    SessionCaches.clearAll();
     await _api.saveSession(
       accessToken: data['access_token'] as String,
       refreshToken: data['refresh_token'] as String,
@@ -129,6 +137,7 @@ class AuthRepository {
         'employees_managed': employeesManaged
       },
     );
+    SessionCaches.clearAll();
     await _api.refreshSession();
     await _api.saveRole('OWNER');
     return response.data!['code'] as String;
@@ -151,6 +160,7 @@ class AuthRepository {
       '/auth/role/employee',
       data: {'invitation_code': invitationCode.trim()},
     );
+    SessionCaches.clearAll();
     await _api.refreshSession();
     await _api.saveRole('EMPLOYEE');
   }
@@ -214,7 +224,10 @@ class AuthRepository {
   }
 
   Future<String?> restoreRole() async {
-    if (!await _api.hasSession) return null;
+    if (!await _api.hasSession) {
+      SessionCaches.clearAll();
+      return null;
+    }
     final savedRole = await _api.role;
     if (savedRole == 'PENDING') return 'PENDING';
     try {
@@ -223,6 +236,7 @@ class AuthRepository {
       final role = rawRole == 'BUSINESS_OWNER' || rawRole == 'OWNER'
           ? 'OWNER'
           : 'EMPLOYEE';
+      if (savedRole != null && savedRole != role) SessionCaches.clearAll();
       await _api.saveRole(role);
       final settings =
           await _api.dio.get<Map<String, dynamic>>('/api/v1/security/settings');
@@ -240,6 +254,7 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    SessionCaches.clearAll();
     await PushNotificationService.instance.logout();
     try {
       await _api.dio.post<void>('/auth/logout');

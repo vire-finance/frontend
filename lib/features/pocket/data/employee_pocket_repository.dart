@@ -16,8 +16,19 @@ class EmployeePocketRepository extends ChangeNotifier {
       List.unmodifiable(_accessiblePockets);
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  int _generation = 0;
+
+  /// Drops cached account data so a later session never sees it.
+  void clear() {
+    _generation++;
+    _accessibleCards = const [];
+    _accessiblePockets = const [];
+    _isLoading = false;
+    notifyListeners();
+  }
 
   Future<void> load() async {
+    final requestGeneration = ++_generation;
     _isLoading = true;
     notifyListeners();
     try {
@@ -25,6 +36,7 @@ class EmployeePocketRepository extends ChangeNotifier {
         ApiClient.instance.dio.get<List<dynamic>>('/cards'),
         ApiClient.instance.dio.get<List<dynamic>>('/pockets'),
       ]);
+      if (requestGeneration != _generation) return;
       final cardRows = responses[0].data ?? const [];
       final pocketRows = responses[1].data ?? const [];
       _accessibleCards = cardRows.map((row) {
@@ -63,12 +75,15 @@ class EmployeePocketRepository extends ChangeNotifier {
         );
       }).toList(growable: false);
     } catch (_) {
+      if (requestGeneration != _generation) return;
       _accessibleCards = const [];
       _accessiblePockets = const [];
       rethrow;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestGeneration == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

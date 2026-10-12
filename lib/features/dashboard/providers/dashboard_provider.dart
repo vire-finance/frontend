@@ -34,12 +34,12 @@ class DashboardProvider extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  Future<void> load() async {
+  Future<void> load({String? period}) async {
     _isLoading = true;
     _error = null;
     _notify();
     try {
-      _data = await _repository.loadOwnerDashboard();
+      _data = await _repository.loadOwnerDashboard(period: period);
       final key = '${_data!.monthlyLimit}:${_data!.transactionCount}:'
           '${_data!.spendingCategories.map((c) => '${c.name}:${c.amount}').join('|')}';
       if (!_disposed && key != _aiDataKey) {

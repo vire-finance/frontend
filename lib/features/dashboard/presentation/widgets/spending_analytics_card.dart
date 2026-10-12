@@ -12,6 +12,7 @@ class SpendingAnalyticsCard extends StatefulWidget {
       {required this.data,
       this.onExport,
       this.onViewDetails,
+      this.onPeriodChanged,
       this.aiSummary,
       this.isAiLoading = false,
       this.hasAiError = false,
@@ -22,8 +23,22 @@ class SpendingAnalyticsCard extends StatefulWidget {
   final bool isAiLoading;
   final bool hasAiError;
   final VoidCallback? onRefreshAi;
-  final VoidCallback? onExport;
+  final ValueChanged<String?>? onExport;
   final VoidCallback? onViewDetails;
+  final ValueChanged<String?>? onPeriodChanged;
+
+  /// Maps the visible period label to the backend `period=YYYY-MM` value.
+  ///
+  /// 'This Month' resolves to null so the backend applies its current-month
+  /// default (Asia/Jakarta), matching the dashboard summary endpoint.
+  /// Any other label resolves to the previous WIB calendar month.
+  static String? spendingPeriodParam(String label, DateTime nowUtc) {
+    if (label != 'Last Month') return null;
+    final wib = nowUtc.toUtc().add(const Duration(hours: 7));
+    final year = wib.month == 1 ? wib.year - 1 : wib.year;
+    final month = wib.month == 1 ? 12 : wib.month - 1;
+    return '$year-${month.toString().padLeft(2, '0')}';
+  }
 
   @override
   State<SpendingAnalyticsCard> createState() => _SpendingAnalyticsCardState();
@@ -42,7 +57,7 @@ class _SpendingAnalyticsCardState extends State<SpendingAnalyticsCard> {
           Row(children: [
             Expanded(
                 child: _selector(_period, const ['This Month', 'Last Month'],
-                    (value) => setState(() => _period = value))),
+                    _selectPeriod)),
             const SizedBox(width: 8),
             Expanded(
                 child: _selector(_type, const ['Expenses', 'Income'],
@@ -83,7 +98,11 @@ class _SpendingAnalyticsCardState extends State<SpendingAnalyticsCard> {
           Row(children: [
             Expanded(
                 child: OutlinedButton.icon(
-                    onPressed: widget.onExport,
+                    onPressed: widget.onExport == null
+                        ? null
+                        : () => widget.onExport!(SpendingAnalyticsCard
+                            .spendingPeriodParam(
+                                _period, DateTime.now().toUtc())),
                     icon: const Icon(Icons.download_outlined, size: 16),
                     label: const Text('Export'),
                     style: OutlinedButton.styleFrom(
@@ -100,6 +119,12 @@ class _SpendingAnalyticsCardState extends State<SpendingAnalyticsCard> {
           ]),
         ]),
       );
+
+  void _selectPeriod(String value) {
+    setState(() => _period = value);
+    widget.onPeriodChanged?.call(
+        SpendingAnalyticsCard.spendingPeriodParam(value, DateTime.now().toUtc()));
+  }
 
   Widget _selector(
           String value, List<String> options, ValueChanged<String> onChanged) =>

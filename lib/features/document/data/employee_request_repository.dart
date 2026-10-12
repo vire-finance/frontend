@@ -17,6 +17,16 @@ class EmployeeRequestRepository extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
   final Map<String, String> _unreadNotificationByRequest = {};
+  int _generation = 0;
+
+  /// Drops cached account data so a later session never sees it.
+  void clear() {
+    _generation++;
+    _requests.clear();
+    _unreadNotificationByRequest.clear();
+    _isLoading = false;
+    notifyListeners();
+  }
 
   String? unreadNotificationFor(String requestId) =>
       _unreadNotificationByRequest[requestId];
@@ -28,11 +38,13 @@ class EmployeeRequestRepository extends ChangeNotifier {
   }
 
   Future<void> load() async {
+    final requestGeneration = ++_generation;
     _isLoading = true;
     notifyListeners();
     try {
       final response =
           await _api.dio.get<Map<String, dynamic>>('/fund-requests');
+      if (requestGeneration != _generation) return;
       final rows = response.data?['items'] as List<dynamic>? ?? const [];
       _requests
         ..clear()
@@ -63,16 +75,20 @@ class EmployeeRequestRepository extends ChangeNotifier {
       }
       _mirrorIntoLocalOwnerDocuments();
     } catch (_) {
+      if (requestGeneration != _generation) return;
       _requests.clear();
       _unreadNotificationByRequest.clear();
       rethrow;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestGeneration == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<EmployeePaymentRequest> submit(EmployeePaymentRequest request) async {
+    final requestGeneration = _generation;
     final draftResponse = await _api.dio.post<Map<String, dynamic>>(
       '/fund-requests',
       data: {
@@ -98,7 +114,7 @@ class EmployeeRequestRepository extends ChangeNotifier {
       data: {'allow_failed_ocr': request.allowFailedOcr},
     );
     final submitted = _fromApi(Map<String, dynamic>.from(response.data!));
-    _upsert(submitted);
+    if (requestGeneration == _generation) _upsert(submitted);
     return submitted;
   }
 

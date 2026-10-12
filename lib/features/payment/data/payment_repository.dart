@@ -10,6 +10,12 @@ class PaymentRepository extends ChangeNotifier {
   PaymentDraft? _lastCompletedPayment;
   PaymentDraft? get lastCompletedPayment => _lastCompletedPayment;
 
+  /// Drops cached account data so a later session never sees it.
+  void clear() {
+    _lastCompletedPayment = null;
+    notifyListeners();
+  }
+
   PaymentDraft complete(PaymentDraft draft,
       {String? transactionId, DateTime? completedAt}) {
     final completed = draft.completed(

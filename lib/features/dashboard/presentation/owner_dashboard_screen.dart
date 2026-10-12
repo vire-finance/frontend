@@ -90,9 +90,14 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                             isAiLoading: _provider.isGeneratingInsights,
                             hasAiError: _provider.insightsFailed,
                             onRefreshAi: _refreshAi,
-                            onExport: () => _export(
+                            onExport: (period) => _export(
                                 '/dashboard/spending/export.csv',
-                                'vire-spending.csv'),
+                                'vire-spending.csv',
+                                query: {
+                                  if (period != null) 'period': period
+                                }),
+                            onPeriodChanged: (period) =>
+                                _provider.load(period: period),
                             onViewDetails: () => _openAndRefresh(
                                 AnalyticsDetailScreen(
                                     data: data,
@@ -178,9 +183,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   void _showUnavailable(String message) => ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text(message)));
 
-  Future<void> _export(String path, String name) async {
+  Future<void> _export(String path, String name,
+      {Map<String, dynamic>? query}) async {
     try {
-      await ExportService.instance.shareBackendFile(path, fileName: name);
+      await ExportService.instance
+          .shareBackendFile(path, query: query, fileName: name);
     } catch (error) {
       if (mounted) _showUnavailable(apiErrorMessage(error));
     }

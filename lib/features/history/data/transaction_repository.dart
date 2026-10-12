@@ -14,8 +14,19 @@ class TransactionRepository extends ChangeNotifier {
   final _api = ApiClient.instance;
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  int _generation = 0;
+
+  /// Drops cached account data so a later session never sees it.
+  /// Any in-flight [load] captured an older generation and is discarded.
+  void clear() {
+    _generation++;
+    _transactions.clear();
+    _isLoading = false;
+    notifyListeners();
+  }
 
   Future<void> load({String? cardId}) async {
+    final requestGeneration = ++_generation;
     _isLoading = true;
     notifyListeners();
     try {
@@ -27,17 +38,21 @@ class TransactionRepository extends ChangeNotifier {
           if (cardId != null) 'card_id': cardId
         },
       );
+      if (requestGeneration != _generation) return;
       final rows = response.data?['items'] as List<dynamic>? ?? const [];
       _transactions
         ..clear()
         ..addAll(
             rows.map((row) => _fromApi(Map<String, dynamic>.from(row as Map))));
     } catch (_) {
+      if (requestGeneration != _generation) return;
       _transactions.clear();
       rethrow;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestGeneration == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 

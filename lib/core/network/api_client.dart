@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 class ApiClient {
   ApiClient._() {
     const configuredBaseUrl = String.fromEnvironment('VIRE_API_BASE_URL');
@@ -65,6 +64,12 @@ class ApiClient {
   late final Dio dio;
   Future<bool>? _refreshing;
 
+  /// Invoked whenever the local session is torn down (logout, failed refresh
+  /// recovery, invalid session). Used to purge account-specific in-memory
+  /// caches without creating an import cycle with repositories.
+  /// Never invoked on successful token refresh.
+  VoidCallback? onSessionInvalidated;
+
   Future<void> saveSession({required String accessToken, required String refreshToken, String? role}) async {
     await storage.write(key: _accessTokenKey, value: accessToken);
     await storage.write(key: _refreshTokenKey, value: refreshToken);
@@ -79,6 +84,9 @@ class ApiClient {
     await storage.delete(key: _accessTokenKey);
     await storage.delete(key: _refreshTokenKey);
     await storage.delete(key: _roleKey);
+    try {
+      onSessionInvalidated?.call();
+    } catch (_) {}
   }
 
   Future<void> saveRole(String role) => storage.write(key: _roleKey, value: role);

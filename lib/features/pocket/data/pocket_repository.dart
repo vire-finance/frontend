@@ -13,8 +13,19 @@ class PocketRepository extends ChangeNotifier {
   final cards = <VireCardData>[];
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  int _generation = 0;
+
+  /// Drops cached account data so a later session never sees it.
+  void clear() {
+    _generation++;
+    pockets.clear();
+    cards.clear();
+    _isLoading = false;
+    notifyListeners();
+  }
 
   Future<void> load() async {
+    final requestGeneration = ++_generation;
     _isLoading = true;
     notifyListeners();
     try {
@@ -22,6 +33,7 @@ class PocketRepository extends ChangeNotifier {
         _api.dio.get<List<dynamic>>('/pockets'),
         _api.dio.get<List<dynamic>>('/cards'),
       ]);
+      if (requestGeneration != _generation) return;
       pockets
         ..clear()
         ..addAll((responses[0].data as List<dynamic>? ?? const []).map(
@@ -31,12 +43,15 @@ class PocketRepository extends ChangeNotifier {
         ..addAll((responses[1].data as List<dynamic>? ?? const [])
             .map((row) => _cardFromApi(Map<String, dynamic>.from(row as Map))));
     } catch (_) {
+      if (requestGeneration != _generation) return;
       pockets.clear();
       cards.clear();
       rethrow;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (requestGeneration == _generation) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -51,6 +66,7 @@ class PocketRepository extends ChangeNotifier {
   }
 
   Future<VirePocketData> createPocket(VirePocketData pocket) async {
+    final requestGeneration = _generation;
     final response =
         await _api.dio.post<Map<String, dynamic>>('/pockets', data: {
       'name': pocket.name,
@@ -59,12 +75,15 @@ class PocketRepository extends ChangeNotifier {
       'theme': _backendTheme(pocket.themeIndex),
     });
     final created = _pocketFromApi(Map<String, dynamic>.from(response.data!));
-    pockets.insert(0, created);
-    notifyListeners();
+    if (requestGeneration == _generation) {
+      pockets.insert(0, created);
+      notifyListeners();
+    }
     return created;
   }
 
   Future<VireCardData> createCard(VireCardData card) async {
+    final requestGeneration = _generation;
     final response = await _api.dio.post<Map<String, dynamic>>('/cards', data: {
       'pocket_id': card.pocketId,
       'name': card.name,
@@ -74,16 +93,20 @@ class PocketRepository extends ChangeNotifier {
       'allowed_categories': card.allowedCategories,
     });
     final created = _cardFromApi(Map<String, dynamic>.from(response.data!));
-    cards.insert(0, created);
-    notifyListeners();
+    if (requestGeneration == _generation) {
+      cards.insert(0, created);
+      notifyListeners();
+    }
     return created;
   }
 
   Future<void> updateCardStatus(VireCardData card,
       {required bool locked}) async {
+    final requestGeneration = _generation;
     final response = await _api.dio.patch<Map<String, dynamic>>(
         '/cards/${card.id}/status',
         data: {'status': locked ? 'FROZEN' : 'ACTIVE'});
+    if (requestGeneration != _generation) return;
     _storeCard(_cardFromApi(Map<String, dynamic>.from(response.data!)));
   }
 
@@ -97,6 +120,7 @@ class PocketRepository extends ChangeNotifier {
       {required DateTime expiresOn,
       required String usageType,
       required bool blocked}) async {
+    final requestGeneration = _generation;
     final date =
         '${expiresOn.year.toString().padLeft(4, '0')}-${expiresOn.month.toString().padLeft(2, '0')}-${expiresOn.day.toString().padLeft(2, '0')}';
     final previousExpiry = card.expiresOn ??
@@ -109,6 +133,7 @@ class PocketRepository extends ChangeNotifier {
       'usage_type': usageType,
       'blocked': blocked,
     });
+    if (requestGeneration != _generation) return;
     _storeCard(_cardFromApi(Map<String, dynamic>.from(response.data!)));
   }
 
@@ -137,8 +162,10 @@ class PocketRepository extends ChangeNotifier {
   }
 
   Future<VireCardData> loadCardDetail(String cardId) async {
+    final requestGeneration = _generation;
     final response = await _api.dio.get<Map<String, dynamic>>('/cards/$cardId');
     final card = _cardFromApi(Map<String, dynamic>.from(response.data!));
+    if (requestGeneration != _generation) return card;
     final index = cards.indexWhere((item) => item.id == cardId);
     if (index >= 0) cards[index] = card;
     notifyListeners();
