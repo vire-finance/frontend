@@ -23,11 +23,13 @@ The backend must list the deployed web origin in its `CORS_ORIGINS`
 Render variable, or authenticated web calls fail preflight.
 
 
-## Render website deployment
+## Website deployment
 
-The Render Blueprint in `render.yaml` publishes a landing page at `/`, the Flutter app at `/app.html`, and the Android installer at `/downloads/vire.apk`. The build script pins Flutter 3.47.6 and builds the web app with the Render backend URL as its release default.
+The Flutter Web app and Android APK are published through GitHub Pages. The workflow builds the Flutter app with base path `/frontend/`, keeps the landing page at `/`, serves the app at `/app.html`, and serves the APK at `/downloads/vire.apk`.
 
-Before first publish, add the website origin to the backend Render service's `CORS_ORIGINS` and to the Google OAuth Web client as an Authorized JavaScript origin. For Android Google sign-in, the Android OAuth client must match package `com.example.vire` and the signing certificate SHA-1; the Android and Web OAuth clients must be in the same Google Cloud project.
+The repository is public, so GitHub Pages is available on the free plan. In repository Settings > Pages, set Source to **GitHub Actions**. Pushes to `codex/deploy-frontend` then trigger the deploy workflow.
+
+After the first deploy, add the Pages origin `https://vire-finance.github.io` to the backend Render `CORS_ORIGINS` and to the Google OAuth Web client as an Authorized JavaScript origin. For Android Google sign-in, the Android OAuth client must match package `com.example.vire` and the signing certificate SHA-1.
 ## Firebase config
 
 Copy `firebase-config.example.json` to `firebase-config.json` and fill in
