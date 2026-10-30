@@ -76,7 +76,8 @@ class _PinScreenState extends State<PinScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', ''))),
       );
       setState(() {
         _pin = '';
@@ -221,23 +222,48 @@ class _PinScreenState extends State<PinScreen> {
                         width: double.infinity,
                         color: AppColors.blue50,
                         padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-                        child: GridView.count(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.08,
+                        child: Column(
                           children: [
-                              for (final key in const [
-                                '1', '2', '3',
-                                '4', '5', '6',
-                                '7', '8', '9',
-                                'fingerprint', '0', '⌫',
-                              ])
-                                // Biometric authentication is not implemented,
-                                // so the fingerprint slot stays empty.
-                                key == 'fingerprint'
-                                    ? const SizedBox.shrink()
-                                    : _buildKey(key),
+                            for (final row in const [
+                              ['1', '2', '3'],
+                              ['4', '5', '6'],
+                              ['7', '8', '9'],
+                            ])
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    for (final key in row)
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(6),
+                                          child: _buildKey(key),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Expanded(flex: 1, child: SizedBox()),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(6),
+                                      child: _buildKey('0'),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(6),
+                                      child: _buildKey('⌫'),
+                                    ),
+                                  ),
+                                  const Expanded(flex: 1, child: SizedBox()),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),

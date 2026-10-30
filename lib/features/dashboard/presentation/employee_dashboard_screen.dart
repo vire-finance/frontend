@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/push_notification_service.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/network/export_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/bottom_nav_shell.dart';
 import '../../../shared/widgets/notification_sheet.dart';
@@ -107,6 +108,9 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                   children: [
                     Row(children: [
+                      Image.asset('assets/images/Regular Images/Logo - V.png',
+                          width: 30, height: 30, fit: BoxFit.contain),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                             _displayName == null
@@ -117,8 +121,6 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700)),
                       ),
-                      Image.asset('assets/images/Regular Images/Logo - V.png',
-                          width: 30, height: 30),
                       IconButton(
                           tooltip: 'Notifications',
                           icon: const Icon(Icons.notifications,
@@ -155,6 +157,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                       transactions: transactions,
                       transactionCount: transactions.length,
                       onViewAll: () => _selectDestination(3),
+                      onExport: () => ExportService.instance.shareHistoryCsv(),
                     ),
                   ],
                 ),

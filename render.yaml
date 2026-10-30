@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: vire-frontend
+    runtime: static
+    buildCommand: bash tool/render_build.sh
+    staticPublishPath: build/web
+    autoDeploy: true

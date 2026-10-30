@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 class ApiClient {
   ApiClient._() {
     const configuredBaseUrl = String.fromEnvironment('VIRE_API_BASE_URL');
@@ -14,11 +15,18 @@ class ApiClient {
             _ => 'localhost',
           };
     dio = Dio(BaseOptions(
-      baseUrl: configuredBaseUrl.isNotEmpty ? configuredBaseUrl : 'http://$defaultHost:8000',
+      baseUrl: configuredBaseUrl.isNotEmpty
+          ? configuredBaseUrl
+          : kReleaseMode
+              ? 'https://vire-backend-1e3o.onrender.com'
+              : 'http://$defaultHost:8000',
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
-      headers: const {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      headers: const {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
     ));
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -26,6 +34,7 @@ class ApiClient {
           final token = await storage.read(key: _accessTokenKey);
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
+            options.extra['sessionGeneration'] = _sessionGeneration;
           }
         }
         handler.next(options);
@@ -38,9 +47,26 @@ class ApiClient {
           handler.next(error);
           return;
         }
+        final requestGeneration = request.extra['sessionGeneration'];
+        if (requestGeneration is! int) {
+          handler.next(error);
+          return;
+        }
+        if (requestGeneration is int &&
+            requestGeneration != _sessionGeneration) {
+          handler.next(error);
+          return;
+        }
         final refreshed = await _refresh();
+        if (requestGeneration is int &&
+            requestGeneration != _sessionGeneration) {
+          handler.next(error);
+          return;
+        }
         if (!refreshed) {
-          await clearSession();
+          await clearSession(
+              expectedGeneration:
+                  requestGeneration is int ? requestGeneration : null);
           handler.next(error);
           return;
         }
@@ -63,6 +89,8 @@ class ApiClient {
   static const storage = FlutterSecureStorage();
   late final Dio dio;
   Future<bool>? _refreshing;
+  Future<void> _sessionMutation = Future<void>.value();
+  int _sessionGeneration = 0;
 
   /// Invoked whenever the local session is torn down (logout, failed refresh
   /// recovery, invalid session). Used to purge account-specific in-memory
@@ -70,29 +98,48 @@ class ApiClient {
   /// Never invoked on successful token refresh.
   VoidCallback? onSessionInvalidated;
 
-  Future<void> saveSession({required String accessToken, required String refreshToken, String? role}) async {
-    await storage.write(key: _accessTokenKey, value: accessToken);
-    await storage.write(key: _refreshTokenKey, value: refreshToken);
-    if (role != null) await storage.write(key: _roleKey, value: role);
+  Future<void> saveSession(
+      {required String accessToken,
+      required String refreshToken,
+      String? role}) {
+    final generation = ++_sessionGeneration;
+    return _mutateSession(() async {
+      if (generation != _sessionGeneration) return;
+      await _writeSession(accessToken, refreshToken, role);
+    });
+  }
+
+  void beginSessionSwitch() {
+    _sessionGeneration++;
   }
 
   Future<String?> get role => storage.read(key: _roleKey);
   Future<String?> get accessToken => storage.read(key: _accessTokenKey);
   Future<bool> get hasSession async => (await accessToken)?.isNotEmpty == true;
 
-  Future<void> clearSession() async {
-    await storage.delete(key: _accessTokenKey);
-    await storage.delete(key: _refreshTokenKey);
-    await storage.delete(key: _roleKey);
-    try {
-      onSessionInvalidated?.call();
-    } catch (_) {}
+  Future<void> clearSession({int? expectedGeneration}) async {
+    if (expectedGeneration != null && expectedGeneration != _sessionGeneration)
+      return;
+    final generation = ++_sessionGeneration;
+    await _mutateSession(() async {
+      if (generation != _sessionGeneration) return;
+      await storage.delete(key: _accessTokenKey);
+      await storage.delete(key: _refreshTokenKey);
+      await storage.delete(key: _roleKey);
+    });
+    if (generation == _sessionGeneration) {
+      try {
+        onSessionInvalidated?.call();
+      } catch (_) {}
+    }
   }
 
-  Future<void> saveRole(String role) => storage.write(key: _roleKey, value: role);
+  Future<void> saveRole(String role) =>
+      storage.write(key: _roleKey, value: role);
 
   Future<void> refreshSession() async {
-    if (!await _refresh()) throw StateError('Sesi tidak dapat diperbarui. Silakan login kembali.');
+    if (!await _refresh())
+      throw StateError('Sesi tidak dapat diperbarui. Silakan login kembali.');
   }
 
   Future<bool> _refresh() {
@@ -108,16 +155,18 @@ class ApiClient {
   }
 
   Future<bool> _performRefresh() async {
+    final generation = _sessionGeneration;
     final refreshToken = await storage.read(key: _refreshTokenKey);
-    if (refreshToken == null || refreshToken.isEmpty) return false;
+    if (refreshToken == null ||
+        refreshToken.isEmpty ||
+        generation != _sessionGeneration) return false;
     try {
       final response = await Dio(BaseOptions(
         baseUrl: dio.options.baseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
         sendTimeout: const Duration(seconds: 10),
-      ))
-          .post<Map<String, dynamic>>(
+      )).post<Map<String, dynamic>>(
         '/auth/refresh',
         options: Options(
           headers: {'Authorization': 'Bearer $refreshToken'},
@@ -135,12 +184,14 @@ class ApiClient {
           newRefreshToken.isEmpty) {
         return false;
       }
-      await saveSession(
-        accessToken: accessToken,
-        refreshToken: newRefreshToken,
-        role: data?['role'] as String?,
-      );
-      return true;
+      var persisted = false;
+      await _mutateSession(() async {
+        if (generation != _sessionGeneration) return;
+        await _writeSession(
+            accessToken, newRefreshToken, data?['role'] as String?);
+        persisted = true;
+      });
+      return persisted;
       // ignore: avoid_catching_errors
     } on DioException {
       return false;
@@ -152,12 +203,26 @@ class ApiClient {
     }
   }
 
+  Future<void> _writeSession(
+      String accessToken, String refreshToken, String? role) async {
+    await storage.write(key: _accessTokenKey, value: accessToken);
+    await storage.write(key: _refreshTokenKey, value: refreshToken);
+    if (role != null) await storage.write(key: _roleKey, value: role);
+  }
+
+  Future<void> _mutateSession(Future<void> Function() mutation) {
+    final next = _sessionMutation.then((_) => mutation());
+    _sessionMutation = next.catchError((Object _) {});
+    return next;
+  }
+
   static String newIdempotencyKey() {
     final random = Random.secure();
     final bytes = List<int>.generate(16, (_) => random.nextInt(256));
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    final hex = bytes.map((value) => value.toRadixString(16).padLeft(2, '0')).join();
+    final hex =
+        bytes.map((value) => value.toRadixString(16).padLeft(2, '0')).join();
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 }
@@ -169,12 +234,28 @@ String apiErrorMessage(Object error) {
       final detail = data['detail'];
       if (detail is String) return detail;
       if (detail is List) {
-        return detail.map((item) => item is Map ? '${item['loc']?.join('.') ?? ''}: ${item['msg'] ?? ''}' : '$item').join('\n');
+        return detail
+            .map((item) => item is Map
+                ? '${item['loc']?.join('.') ?? ''}: ${item['msg'] ?? ''}'
+                : '$item')
+            .join('\n');
       }
-      if (detail is Map && detail['message'] is String) return detail['message'] as String;
+      if (detail is Map && detail['message'] is String)
+        return detail['message'] as String;
     }
-    if (data is Map && data['failure_reason'] is String) return data['failure_reason'] as String;
-    return error.message ?? 'Tidak dapat terhubung ke server.';
+    if (data is Map && data['failure_reason'] is String)
+      return data['failure_reason'] as String;
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return 'Tidak dapat terhubung ke server. Periksa internet dan URL API.';
+    }
+    return _shortError(error.message ?? 'Permintaan tidak dapat diproses.');
   }
-  return error.toString();
+  return _shortError(error.toString().replaceFirst('Exception: ', ''));
+}
+
+String _shortError(String message) {
+  final compact = message.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return compact.length <= 180 ? compact : '${compact.substring(0, 177)}…';
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
+import 'splash_logo.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../dashboard/presentation/employee_dashboard_screen.dart';
 import '../../dashboard/presentation/owner_dashboard_screen.dart';
@@ -19,31 +20,13 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  Timer? _logoTimer;
   Timer? _navigationTimer;
-  bool _showWordmark = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    precacheImage(
-        const AssetImage('assets/images/Regular Images/Logo - V.png'), context);
-    precacheImage(
-        const AssetImage('assets/images/Regular Images/Logo - VIRE.png'),
-        context);
-  }
 
   @override
   void initState() {
     super.initState();
 
-    _logoTimer = Timer(const Duration(milliseconds: 900), () {
-      if (!mounted) return;
-
-      setState(() => _showWordmark = true);
-    });
-
-    _navigationTimer = Timer(const Duration(milliseconds: 2600), _navigateNext);
+    _navigationTimer = Timer(const Duration(milliseconds: 3000), _navigateNext);
   }
 
   Future<void> _navigateNext() async {
@@ -60,12 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
       _ => const OnboardingScreen(),
     };
     Navigator.of(context).pushReplacement(
-      PageRouteBuilder<void>(
-        pageBuilder: (context, animation, secondaryAnimation) => destination,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-            FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 350),
-      ),
+      MaterialPageRoute<void>(builder: (_) => destination),
     );
   }
 
@@ -83,51 +61,19 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
-    _logoTimer?.cancel();
     _navigationTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return const AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.basicWhite,
         body: Center(
-          child: SizedBox(
-              height: 84,
-              width: 280,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 500),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  final scale = Tween<double>(
-                    begin: 0.88,
-                    end: 1,
-                  ).animate(animation);
-
-                  return FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: scale,
-                      child: child,
-                    ),
-                  );
-                },
-                child: Image.asset(
-                  _showWordmark
-                      ? 'assets/images/Regular Images/Logo - VIRE.png'
-                      : 'assets/images/Regular Images/Logo - V.png',
-                  key: ValueKey<bool>(_showWordmark),
-                  width: _showWordmark ? 280 : 122,
-                  height: 84,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.high,
-                ),
-              )),
-        ),
+            child: SizedBox(
+                width: 236, height: 82, child: FittedBox(child: SplashLogo()))),
       ),
     );
   }

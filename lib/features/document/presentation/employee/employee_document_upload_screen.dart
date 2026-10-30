@@ -1,5 +1,6 @@
 import '../../../../core/utils/money_formatter.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../shared/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -83,33 +84,32 @@ class _EmployeeDocumentUploadScreenState
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15)),
                         const SizedBox(height: 12),
-                        Row(children: [
-                          Expanded(
-                              child: OutlinedButton.icon(
-                                  onPressed: _isScanning ? null : _scanDocument,
-                                  icon: _isScanning
-                                      ? const SizedBox(
-                                          width: 17,
-                                          height: 17,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2))
-                                      : const Icon(
-                                          Icons.document_scanner_outlined),
-                                  label: Text(
-                                      _isScanning
-                                          ? 'Scanning…'
-                                          : _uploadedDocument?.fileName ??
-                                              'Scan Document',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis))),
-                          const SizedBox(width: 10),
-                          Expanded(
-                              child: FilledButton.icon(
-                                  onPressed: () => FocusScope.of(context)
-                                      .requestFocus(FocusNode()),
-                                  icon: const Icon(Icons.article_outlined),
-                                  label: const Text('Add Request'))),
-                        ]),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: FilledButton.icon(
+                            onPressed: _isScanning ? null : _scanDocument,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.blue700,
+                              foregroundColor: AppColors.basicWhite,
+                            ),
+                            icon: _isScanning
+                                ? const SizedBox(
+                                    width: 17,
+                                    height: 17,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.document_scanner_outlined),
+                            label: Text(
+                                _isScanning
+                                    ? 'Scanning…'
+                                    : _uploadedDocument == null
+                                        ? 'Scan & Attach Document'
+                                        : 'Scan Again · ${_uploadedDocument!.fileName}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
                         const SizedBox(height: 24),
                         const Text('Request Details',
                             style: TextStyle(
@@ -271,22 +271,22 @@ class _EmployeeDocumentUploadScreenState
               ? (data['total_amount'] as num).round()
               : num.tryParse('${data['total_amount']}')?.round() ?? 0));
         }
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Document scanned. Review the extracted details before submitting.')));
+        AppToast.show(context,
+            'Document scanned. Review the extracted details before submitting.',
+            type: AppToastType.success);
       } else if (result.status == 'FAILED') {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'OCR could not read this document. Enter the details manually; the attachment will be marked for manual review.')));
+        AppToast.show(context,
+            'OCR could not read this document. Enter the details manually; the attachment will be marked for manual review.',
+            type: AppToastType.warning);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Scanning is still processing. Wait here and try again shortly.')));
+        AppToast.show(context,
+            'Scanning is still processing. Wait here and try again shortly.',
+            type: AppToastType.info);
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(apiErrorMessage(error))));
+        AppToast.show(context, apiErrorMessage(error),
+            type: AppToastType.error);
       }
     } finally {
       if (mounted) setState(() => _isScanning = false);

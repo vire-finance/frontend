@@ -18,20 +18,36 @@ class AiAnalysisBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasInsight = message != null && message!.trim().isNotEmpty;
+    final unavailable = hasError && !hasInsight;
+    final tone = unavailable
+        ? (
+            background: const Color(0xFFFFEBEB),
+            border: AppColors.red300,
+            icon: AppColors.red500,
+            title: AppColors.red700,
+            text: AppColors.red700
+          )
+        : (
+            background: AppColors.blue50,
+            border: AppColors.blue200,
+            icon: AppColors.blue500,
+            title: AppColors.blue700,
+            text: AppColors.blue700
+          );
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 14),
       decoration: BoxDecoration(
-          color: const Color(0xFFFFEBEB),
-          border: Border.all(color: AppColors.red300),
+          color: tone.background,
+          border: Border.all(color: tone.border),
           borderRadius: BorderRadius.circular(18)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          const Icon(Icons.auto_awesome, color: AppColors.red500, size: 21),
+          Icon(Icons.auto_awesome, color: tone.icon, size: 21),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
               child: Text('AI Analysis',
                   style: TextStyle(
-                      color: AppColors.red700,
+                      color: tone.title,
                       fontWeight: FontWeight.w700,
                       fontSize: 12))),
           if (onRefresh != null)
@@ -39,7 +55,7 @@ class AiAnalysisBanner extends StatelessWidget {
                 onPressed: onRefresh,
                 tooltip: 'Refresh analysis',
                 visualDensity: VisualDensity.compact,
-                color: AppColors.red500,
+                color: tone.icon,
                 icon: const Icon(Icons.refresh, size: 18))
         ]),
         const SizedBox(height: 5),
@@ -58,8 +74,8 @@ class AiAnalysisBanner extends StatelessWidget {
                         : hasError
                             ? 'AI analysis is unavailable. Tap refresh to try again.'
                             : 'Your spending analysis will appear here.',
-                    style: const TextStyle(
-                        color: AppColors.red700, fontSize: 12, height: 1.5))
+                    style:
+                        TextStyle(color: tone.text, fontSize: 12, height: 1.5))
             ]))
       ]),
     );

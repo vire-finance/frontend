@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../core/network/api_client.dart';
 import '../../dashboard/presentation/employee_dashboard_screen.dart';
 import '../../dashboard/presentation/owner_dashboard_screen.dart';
@@ -56,9 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    AppToast.show(context, message, type: AppToastType.error);
   }
 
   Future<void> _submit() async {
@@ -238,7 +237,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSubmitting = true);
     try {
       final response = await AuthRepository.instance.loginWithGoogle();
-      if (!mounted || response == null) return;
+      if (!mounted) return;
+      if (response == null) {
+        _showMessage(
+            'Google sign-in did not complete. Check Android OAuth setup and try again.');
+        return;
+      }
       _navigateAfterGoogle(response);
     } catch (error) {
       if (mounted) _showMessage(apiErrorMessage(error));

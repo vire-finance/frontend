@@ -1,8 +1,13 @@
-import '../../../shared/widgets/app_text_field.dart';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/bottom_nav_shell.dart';
 import '../../funding/presentation/fund_account_screen.dart';
 import '../../dashboard/presentation/employee_dashboard_screen.dart';
@@ -25,14 +30,16 @@ class OwnerProfileScreen extends StatelessWidget {
   const OwnerProfileScreen({this.displayName, super.key});
   final String? displayName;
   @override
-  Widget build(BuildContext context) => _ProfileScreen(isOwner: true, displayName: displayName);
+  Widget build(BuildContext context) =>
+      _ProfileScreen(isOwner: true, displayName: displayName);
 }
 
 class EmployeeProfileScreen extends StatelessWidget {
   const EmployeeProfileScreen({this.displayName, super.key});
   final String? displayName;
   @override
-  Widget build(BuildContext context) => _ProfileScreen(isOwner: false, displayName: displayName);
+  Widget build(BuildContext context) =>
+      _ProfileScreen(isOwner: false, displayName: displayName);
 }
 
 class _ProfileScreen extends StatefulWidget {
@@ -46,7 +53,9 @@ class _ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<_ProfileScreen> {
   String? _displayName;
-  bool? _biometricEnabled;
+  String? _profileImageUrl;
+  Map<String, String>? _profileImageHeaders;
+  bool _changingPhoto = false;
   Map<String, bool> _notificationPreferences = {};
 
   @override
@@ -58,15 +67,21 @@ class _ProfileScreenState extends State<_ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       final profile = await AuthRepository.instance.profile();
+      final token = await ApiClient.instance.accessToken;
+      final photoPath = profile['avatar_url'] as String?;
       final settings = await AuthRepository.instance.securitySettings();
       if (widget.isOwner) await PocketRepository.instance.load();
       if (!mounted) return;
       final rawPreferences = settings['notification_preferences'];
       setState(() {
+        _profileImageUrl =
+            photoPath == null ? null : _resolvePhotoUrl(photoPath);
+        _profileImageHeaders =
+            token == null ? null : {'Authorization': 'Bearer $token'};
         _displayName = '${profile['full_name'] ?? ''}'.trim();
-        _biometricEnabled = settings['biometric_enabled'] == true;
         if (rawPreferences is Map) {
-          _notificationPreferences = rawPreferences.map((key, value) => MapEntry('$key', value == true));
+          _notificationPreferences = rawPreferences
+              .map((key, value) => MapEntry('$key', value == true));
         }
       });
     } catch (_) {
@@ -74,13 +89,159 @@ class _ProfileScreenState extends State<_ProfileScreen> {
     }
   }
 
+  Future<void> _changePhoto() async {
+    if (_changingPhoto) return;
+    setState(() => _changingPhoto = true);
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 95,
+        requestFullMetadata: false,
+      );
+      if (picked == null || !mounted) return;
+      final sourceBytes = await picked.readAsBytes();
+      final ratio = await _choosePhotoRatio(sourceBytes);
+      if (ratio == null || !mounted) return;
+      final decoded = img.decodeImage(sourceBytes);
+      if (decoded == null) throw StateError('Foto tidak dapat dibaca.');
+      final oriented = img.bakeOrientation(decoded);
+      final cropWidth = oriented.width / oriented.height > ratio
+          ? (oriented.height * ratio).round()
+          : oriented.width;
+      final cropHeight = oriented.width / oriented.height > ratio
+          ? oriented.height
+          : (oriented.width / ratio).round();
+      final cropped = img.copyCrop(
+        oriented,
+        x: (oriented.width - cropWidth) ~/ 2,
+        y: (oriented.height - cropHeight) ~/ 2,
+        width: cropWidth,
+        height: cropHeight,
+      );
+      final resized = cropped.width > 1024 || cropped.height > 1024
+          ? img.copyResize(
+              cropped,
+              width: cropped.width >= cropped.height ? 1024 : null,
+              height: cropped.height > cropped.width ? 1024 : null,
+            )
+          : cropped;
+      var jpeg = Uint8List.fromList(img.encodeJpg(resized, quality: 85));
+      if (jpeg.length > 1900000) {
+        final smaller = img.copyResize(
+          resized,
+          width: resized.width >= resized.height ? 768 : null,
+          height: resized.height > resized.width ? 768 : null,
+        );
+        jpeg = Uint8List.fromList(img.encodeJpg(smaller, quality: 75));
+      }
+      final response = await ApiClient.instance.dio.post<Map<String, dynamic>>(
+        '/api/v1/profile/photo',
+        data: FormData.fromMap({
+          'file': MultipartFile.fromBytes(
+            jpeg,
+            filename: 'profile.jpg',
+            contentType: DioMediaType('image', 'jpeg'),
+          ),
+        }),
+      );
+      final photoPath = response.data?['avatar_url'] as String?;
+      if (photoPath == null || photoPath.isEmpty) {
+        throw StateError('Server tidak mengembalikan foto profil.');
+      }
+      final token = await ApiClient.instance.accessToken;
+      if (!mounted) return;
+      setState(() {
+        _profileImageUrl = Uri.parse(_resolvePhotoUrl(photoPath)).replace(
+            queryParameters: {
+              'v': '${DateTime.now().millisecondsSinceEpoch}'
+            }).toString();
+        _profileImageHeaders =
+            token == null ? null : {'Authorization': 'Bearer $token'};
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(apiErrorMessage(error))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _changingPhoto = false);
+    }
+  }
+
+  String _resolvePhotoUrl(String path) =>
+      Uri.parse(ApiClient.instance.dio.options.baseUrl)
+          .resolve(path)
+          .toString();
+
+  Future<double?> _choosePhotoRatio(Uint8List bytes) => showDialog<double>(
+        context: context,
+        builder: (dialogContext) {
+          var selectedRatio = 1.0;
+          return StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              title: const Text('Atur rasio foto'),
+              content: SizedBox(
+                width: 270,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: selectedRatio,
+                        child: Image.memory(bytes, fit: BoxFit.cover),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 6,
+                      children: [
+                        for (final option in const [
+                          (label: '1:1', ratio: 1.0),
+                          (label: '4:3', ratio: 4 / 3),
+                          (label: '3:4', ratio: 3 / 4),
+                          (label: '16:9', ratio: 16 / 9),
+                        ])
+                          ChoiceChip(
+                            label: Text(option.label),
+                            selected: selectedRatio == option.ratio,
+                            onSelected: (_) => setDialogState(
+                                () => selectedRatio = option.ratio),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Batal')),
+                FilledButton(
+                    onPressed: () =>
+                        Navigator.pop(dialogContext, selectedRatio),
+                    child: const Text('Gunakan Foto')),
+              ],
+            ),
+          );
+        },
+      );
+
   @override
   Widget build(BuildContext context) {
     final role = widget.isOwner ? 'Business Owner' : 'Employee';
-    final items = widget.isOwner ? vireNavigationItems : employeeNavigationItems;
+    final items =
+        widget.isOwner ? vireNavigationItems : employeeNavigationItems;
     return Scaffold(
       backgroundColor: AppColors.white,
-      bottomNavigationBar: AppNavbar(items: items, selectedIndex: 4, onDestinationSelected: _selectDestination),
+      bottomNavigationBar: AppNavbar(
+          items: items,
+          selectedIndex: 4,
+          onDestinationSelected: _selectDestination),
       body: SafeArea(
         bottom: false,
         child: Center(
@@ -90,11 +251,16 @@ class _ProfileScreenState extends State<_ProfileScreen> {
               padding: EdgeInsets.zero,
               children: [
                 ProfileHeader(
-                  name: _displayName?.isNotEmpty == true ? _displayName : widget.displayName,
+                  name: _displayName?.isNotEmpty == true
+                      ? _displayName
+                      : widget.displayName,
                   role: role,
                   imagePath: widget.isOwner
                       ? 'assets/images/Profiles/Group 220.png'
                       : 'assets/images/Profiles/Group 212.png',
+                  imageUrl: _profileImageUrl,
+                  imageHeaders: _profileImageHeaders,
+                  onTapImage: _changePhoto,
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
@@ -107,8 +273,14 @@ class _ProfileScreenState extends State<_ProfileScreen> {
                         ProfileMenuSection(
                           title: 'Workspace Settings',
                           items: [
-                            ProfileMenuItem(icon: Icons.credit_card_outlined, label: 'Linked Fund Account', onTap: _openFundAccount),
-                            ProfileMenuItem(icon: Icons.people_alt_outlined, label: 'Manage Employee', onTap: _manageEmployees),
+                            ProfileMenuItem(
+                                icon: Icons.credit_card_outlined,
+                                label: 'Linked Fund Account',
+                                onTap: _openFundAccount),
+                            ProfileMenuItem(
+                                icon: Icons.people_alt_outlined,
+                                label: 'Manage Employee',
+                                onTap: _manageEmployees),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -116,11 +288,27 @@ class _ProfileScreenState extends State<_ProfileScreen> {
                       ProfileMenuSection(
                         title: 'Security & Account',
                         items: [
-                          ProfileMenuItem(icon: Icons.password_outlined, label: 'Change Password', onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const ChangePasswordScreen()))),
-                          ProfileMenuItem(icon: Icons.key_outlined, label: 'Change Security Pin', onTap: _changePin),
-                          ProfileMenuItem(icon: Icons.fingerprint, label: 'Biometric Authentication', onTap: _toggleBiometric),
-                          ProfileMenuItem(icon: Icons.notifications_none, label: 'Notification Preferences', onTap: _showNotificationPreferences),
-                          ProfileMenuItem(icon: Icons.logout, label: 'Logout', isDestructive: true, onTap: _confirmLogout),
+                          ProfileMenuItem(
+                              icon: Icons.password_outlined,
+                              label: 'Change Password',
+                              onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          const ChangePasswordScreen()))),
+                          ProfileMenuItem(
+                              icon: Icons.key_outlined,
+                              label: 'Change Security Pin',
+                              onTap: _changePin),
+                          ProfileMenuItem(
+                              icon: Icons.notifications_none,
+                              label: 'Notification Preferences',
+                              onTap: _showNotificationPreferences),
+                          ProfileMenuItem(
+                              icon: Icons.logout,
+                              label: 'Logout',
+                              isDestructive: true,
+                              onTap: _confirmLogout),
                         ],
                       ),
                     ],
@@ -170,7 +358,8 @@ class _ProfileScreenState extends State<_ProfileScreen> {
   }
 
   Future<void> _openFundAccount() async {
-    await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const FundAccountScreen()));
+    await Navigator.push(context,
+        MaterialPageRoute<void>(builder: (_) => const FundAccountScreen()));
   }
 
   void _manageEmployees() {
@@ -179,61 +368,96 @@ class _ProfileScreenState extends State<_ProfileScreen> {
       _showUnavailable('Create a card first to manage employee access.');
       return;
     }
-    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => OwnerAccessScreen(card: cards.first)));
+    Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+            builder: (_) => OwnerAccessScreen(card: cards.first)));
   }
 
   Future<void> _showNotificationPreferences() => showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Notification Preferences'),
-          content: StatefulBuilder(builder: (context, setDialogState) => Column(mainAxisSize: MainAxisSize.min, children: [
-            for (final entry in {'push': 'Push notifications', 'email': 'Email notifications'}.entries)
-              SwitchListTile(title: Text(entry.value), value: _notificationPreferences[entry.key] ?? true, onChanged: (value) => setDialogState(() => _notificationPreferences[entry.key] = value)),
-          ])),
+          content: StatefulBuilder(
+              builder: (context, setDialogState) =>
+                  Column(mainAxisSize: MainAxisSize.min, children: [
+                    for (final entry in {
+                      'push': 'Push notifications',
+                      'email': 'Email notifications'
+                    }.entries)
+                      SwitchListTile(
+                          title: Text(entry.value),
+                          value: _notificationPreferences[entry.key] ?? true,
+                          onChanged: (value) => setDialogState(() =>
+                              _notificationPreferences[entry.key] = value)),
+                  ])),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-            FilledButton(onPressed: () async {
-              try {
-                await AuthRepository.instance.updateNotificationPreferences(_notificationPreferences);
-                if (context.mounted) Navigator.pop(context);
-              } catch (error) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(error))));
-              }
-            }, child: const Text('Save')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close')),
+            FilledButton(
+                onPressed: () async {
+                  try {
+                    await AuthRepository.instance.updateNotificationPreferences(
+                        _notificationPreferences);
+                    if (context.mounted) Navigator.pop(context);
+                  } catch (error) {
+                    if (context.mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(apiErrorMessage(error))));
+                  }
+                },
+                child: const Text('Save')),
           ],
         ),
       );
-
-  Future<void> _toggleBiometric() async {
-    final next = !(_biometricEnabled ?? false);
-    try {
-      await AuthRepository.instance.updateBiometric(next);
-      if (mounted) setState(() => _biometricEnabled = next);
-      _showUnavailable(next ? 'Biometric sign-in enabled.' : 'Biometric sign-in disabled.');
-    } catch (error) {
-      _showUnavailable(apiErrorMessage(error));
-    }
-  }
 
   Future<void> _changePin() async {
     final oldPin = TextEditingController();
     final newPin = TextEditingController();
     final confirmedPin = TextEditingController();
-    final save = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
-      title: const Text('Change Security PIN'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        AppInputField(controller: oldPin, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const AppInputDecoration(labelText: 'Current PIN')),
-        AppInputField(controller: newPin, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const AppInputDecoration(labelText: 'New PIN')),
-        AppInputField(controller: confirmedPin, keyboardType: TextInputType.number, obscureText: true, maxLength: 4, decoration: const AppInputDecoration(labelText: 'Confirm new PIN')),
-      ]),
-      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save'))],
-    ));
+    final save = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+              title: const Text('Change Security PIN'),
+              content: Column(mainAxisSize: MainAxisSize.min, children: [
+                AppInputField(
+                    controller: oldPin,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 4,
+                    decoration:
+                        const AppInputDecoration(labelText: 'Current PIN')),
+                AppInputField(
+                    controller: newPin,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 4,
+                    decoration: const AppInputDecoration(labelText: 'New PIN')),
+                AppInputField(
+                    controller: confirmedPin,
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    maxLength: 4,
+                    decoration:
+                        const AppInputDecoration(labelText: 'Confirm new PIN')),
+              ]),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Save'))
+              ],
+            ));
     if (save == true) {
       if (newPin.text.length != 4 || newPin.text != confirmedPin.text) {
         _showUnavailable('Enter the same 4-digit PIN twice.');
       } else {
         try {
-          await AuthRepository.instance.changeSecurityPin(oldPin: oldPin.text, newPin: newPin.text);
+          await AuthRepository.instance
+              .changeSecurityPin(oldPin: oldPin.text, newPin: newPin.text);
           if (mounted) _showUnavailable('Security PIN updated.');
         } catch (error) {
           if (mounted) _showUnavailable(apiErrorMessage(error));
@@ -250,17 +474,25 @@ class _ProfileScreenState extends State<_ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Log out?'),
-        content: const Text('You will need to log in again to use this account.'),
+        content:
+            const Text('You will need to log in again to use this account.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Log out')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Log out')),
         ],
       ),
     );
     if (confirmed == true && mounted) {
       try {
         await AuthRepository.instance.logout();
-        if (mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()), (route) => false);
+        if (mounted)
+          Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+              (route) => false);
       } catch (error) {
         if (mounted) _showUnavailable(apiErrorMessage(error));
       }
@@ -272,5 +504,6 @@ class _ProfileScreenState extends State<_ProfileScreen> {
         (route) => false,
       );
 
-  void _showUnavailable(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _showUnavailable(String message) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(message)));
 }

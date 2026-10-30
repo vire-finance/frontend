@@ -9,24 +9,20 @@ abstract final class AppTheme {
     const colorScheme = ColorScheme.light(
       primary: AppColors.blue400,
       onPrimary: AppColors.basicWhite,
-      primaryContainer: AppColors.blue50, 
+      primaryContainer: AppColors.blue50,
       onPrimaryContainer: AppColors.blue700,
-
       secondary: AppColors.blue500,
       onSecondary: AppColors.basicWhite,
-
       tertiary: AppColors.orange400,
       onTertiary: AppColors.basicWhite,
-
       error: AppColors.red600,
       onError: AppColors.basicWhite,
       errorContainer: AppColors.red50,
       onErrorContainer: AppColors.red600,
-
-      surface: AppColors.white, 
+      surface: AppColors.white,
       onSurface: AppColors.grey800,
-      onSurfaceVariant: AppColors.grey400, 
-      outline: AppColors.grey100, 
+      onSurfaceVariant: AppColors.grey400,
+      outline: AppColors.grey100,
       outlineVariant: AppColors.blue100,
     );
 
@@ -57,15 +53,50 @@ abstract final class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.basicWhite,
       textTheme: textTheme,
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: _InstantPageTransitionsBuilder(),
+        TargetPlatform.iOS: _InstantPageTransitionsBuilder(),
+        TargetPlatform.windows: _InstantPageTransitionsBuilder(),
+        TargetPlatform.macOS: _InstantPageTransitionsBuilder(),
+        TargetPlatform.linux: _InstantPageTransitionsBuilder(),
+      }),
+      filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 48))),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48))),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.blue900,
+        contentTextStyle: TextStyle(color: AppColors.white),
+      ),
       dividerColor: AppColors.grey100,
       inputDecorationTheme: const InputDecorationTheme(
-        filled: true, fillColor: AppColors.inputFill,
-        hintStyle: AppInputStyles.hint, labelStyle: AppInputStyles.label,
-        contentPadding: AppInputStyles.padding, isDense: true,
-        border: AppInputStyles.border, enabledBorder: AppInputStyles.border,
-        focusedBorder: AppInputStyles.border, disabledBorder: AppInputStyles.border,
-        errorBorder: AppInputStyles.errorBorder, focusedErrorBorder: AppInputStyles.errorBorder,
+        filled: true,
+        fillColor: AppColors.inputFill,
+        hintStyle: AppInputStyles.hint,
+        labelStyle: AppInputStyles.label,
+        contentPadding: AppInputStyles.padding,
+        isDense: true,
+        border: AppInputStyles.border,
+        enabledBorder: AppInputStyles.border,
+        focusedBorder: AppInputStyles.border,
+        disabledBorder: AppInputStyles.border,
+        errorBorder: AppInputStyles.errorBorder,
+        focusedErrorBorder: AppInputStyles.errorBorder,
       ),
     );
   }
+}
+
+class _InstantPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _InstantPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+          Route<T> route,
+          BuildContext context,
+          Animation<double> animation,
+          Animation<double> secondaryAnimation,
+          Widget child) =>
+      child;
 }

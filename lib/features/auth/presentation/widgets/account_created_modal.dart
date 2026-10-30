@@ -25,7 +25,7 @@ class SetupCompleteModal {
     required VoidCallback onContinue,
     String title = 'Setup complete!',
     String description =
-      "Your workspace is all set. You're ready to explore your dashboard now.",
+        "Your workspace is all set. You're ready to explore your dashboard now.",
   }) {
     return _showSuccessModal(
       context,
@@ -115,8 +115,8 @@ Future<void> _showSuccessModal(
                 ),
               ),
               Positioned(
-                top: -10,
-                right: -10,
+                top: 0,
+                right: 0,
                 child: IconButton(
                   tooltip: 'Close',
                   onPressed: () => Navigator.of(dialogContext).pop(),
