@@ -519,51 +519,30 @@ class _PurchaseRequestFormScreenState extends State<PurchaseRequestFormScreen> {
                                       fontWeight: FontWeight.w700,
                                       fontSize: 15)),
                               const SizedBox(height: 16),
-                              Row(children: [
-                                Expanded(
-                                    child: SizedBox(
-                                        height: 50,
-                                        child: OutlinedButton.icon(
-                                            onPressed: _busy ? null : _invoice,
-                                            style: OutlinedButton.styleFrom(
-                                                foregroundColor:
-                                                    AppColors.blue500,
-                                                shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10)),
-                                                side: const BorderSide(
-                                                    color: AppColors.blue500)),
-                                            icon: _busy
-                                                ? const SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                            strokeWidth: 2))
-                                                : const Icon(
-                                                    Icons.document_scanner_outlined),
-                                            label: Text(_invoiceName ?? 'Scan Document', maxLines: 1, overflow: TextOverflow.ellipsis)))),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                    child: SizedBox(
-                                        height: 50,
-                                        child: FilledButton.icon(
-                                            onPressed: _busy
-                                                ? null
-                                                : () => _purposeFocus
-                                                    .requestFocus(),
-                                            style: FilledButton.styleFrom(
-                                                backgroundColor:
-                                                    AppColors.blue500,
-                                                shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10))),
-                                            icon: const Icon(
-                                                Icons.article_rounded),
-                                            label: const Text('Add Request')))),
-                              ]),
+                              SizedBox(
+                                  width: double.infinity,
+                                  height: 48,
+                                  child: FilledButton.icon(
+                                      onPressed: _busy ? null : _invoice,
+                                      style: FilledButton.styleFrom(
+                                          backgroundColor: AppColors.blue700,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10))),
+                                      icon: _busy
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2))
+                                          : const Icon(
+                                              Icons.document_scanner_outlined),
+                                      label: Text(
+                                          _invoiceName == null
+                                              ? 'Scan & Attach Document'
+                                              : 'Scan Again · $_invoiceName',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis))),
                               const SizedBox(height: 24),
                               const Text('Request Details',
                                   style: TextStyle(
@@ -887,30 +866,49 @@ class _PurchaseRequestDetailScreenState
             elevation: 0),
         bottomNavigationBar: widget.owner &&
                 r != null &&
-                r['payment_executor'] == 'OWNER_PAYMENT' &&
-                r['status'] == 'PENDING_APPROVAL'
+                ((r['payment_executor'] == 'OWNER_PAYMENT' &&
+                        r['status'] == 'PENDING_APPROVAL') ||
+                    r['receipt_status'] == 'RECEIPT_SUBMITTED')
             ? SafeArea(
                 child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: FilledButton(
-                              onPressed: _reject,
-                              style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.blue500),
-                              child: const Text('Decline'))),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: FilledButton(
-                              onPressed: _approve,
-                              style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFBFCEF0),
-                                  foregroundColor: AppColors.blue700),
-                              child: const Text('Approve & Pay Invoice'))),
+                      if (r['payment_executor'] == 'OWNER_PAYMENT' &&
+                          r['status'] == 'PENDING_APPROVAL') ...[
+                        SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: FilledButton(
+                                onPressed: _reject,
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: AppColors.blue500),
+                                child: const Text('Decline'))),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: FilledButton(
+                                onPressed: _approve,
+                                style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFFBFCEF0),
+                                    foregroundColor: AppColors.blue700),
+                                child: const Text('Approve & Pay Invoice'))),
+                      ],
+                      if (r['receipt_status'] == 'RECEIPT_SUBMITTED') ...[
+                        SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: FilledButton(
+                                onPressed: () => _review(true),
+                                child: const Text('Verify & Close'))),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton(
+                                onPressed: () => _review(false),
+                                child: const Text('Needs Clarification'))),
+                      ],
                     ])))
             : null,
         body: r == null
@@ -920,223 +918,221 @@ class _PurchaseRequestDetailScreenState
                     : Text(_error!))
             : RefreshIndicator(
                 onRefresh: _load,
-                child: ListView(padding: const EdgeInsets.all(20), children: [
-                  IntrinsicHeight(
-                      child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                        Expanded(
-                            child: Column(children: [
-                          Text('${r['display_id'] ?? 'Invoice'}',
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.blue900)),
-                          const SizedBox(height: 24),
-                          Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 4),
-                              decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF4E8),
-                                  border:
-                                      Border.all(color: AppColors.orange500),
-                                  borderRadius: BorderRadius.circular(4)),
-                              child: const Text('Purchase',
-                                  style:
-                                      TextStyle(color: AppColors.orange500))),
-                        ])),
-                        const VerticalDivider(width: 24),
-                        Expanded(
-                            child: Column(children: [
-                          const Text('Requested By',
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.blue900)),
-                          const SizedBox(height: 10),
-                          ClipOval(
-                              child: _requesterAvatar(
-                                  r['requester']?['avatar_url'])),
-                          const SizedBox(height: 8),
-                          Text(
-                              "${r['requester']?['name'] ?? 'Employee'} - Employee",
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: AppColors.blue500,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12)),
-                        ])),
-                      ])),
-                  const SizedBox(height: 20),
-                  if (r['paid_at'] != null) ...[
-                    Text(
-                        r['payment_executor'] == 'OWNER_PAYMENT'
-                            ? 'Paid by Owner'
-                            : 'Payment Completed',
-                        style: TextStyle(
-                            color: Colors.green, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 16),
-                  ] else if (r['payment_executor'] == 'EMPLOYEE_PAYMENT') ...[
-                    const Text(
-                        'Invoice required: this older request has not been paid.',
-                        style: TextStyle(color: AppColors.orange500)),
-                    const SizedBox(height: 16),
-                  ],
-                  _info('Document Explanation', r['explanation']),
-                  const SizedBox(height: 10),
-                  const Text('Document',
-                      style: TextStyle(
-                          color: AppColors.blue500,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 14),
-                  if ((r['documents'] as List? ?? []).isEmpty)
-                    const Text('No invoice attached.'),
-                  for (final d in (r['documents'] as List? ?? []))
-                    if ('${d['id']}' != '${r['receipt']?['id']}')
-                      Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          decoration: BoxDecoration(
-                              border: Border.all(color: AppColors.grey50),
-                              borderRadius: BorderRadius.circular(20)),
-                          child: ListTile(
-                              leading: Icon(Icons.picture_as_pdf_outlined,
-                                  color: '${d['mime_type']}'.contains('pdf')
-                                      ? Colors.red
-                                      : AppColors.blue500),
-                              title: Text('${d['original_filename']}',
-                                  overflow: TextOverflow.ellipsis),
-                              subtitle: Text(
-                                  '${d['created_at'] ?? ''}'.split('T').first),
-                              trailing: IconButton(
-                                  icon: const Icon(Icons.download_outlined,
-                                      color: AppColors.blue500),
-                                  onPressed: () => _file('${d['download_url']}',
-                                      '${d['original_filename']}')))),
-                  const SizedBox(height: 12),
-                  _info('Party Name', r['party_name']),
-                  const Text('Amount',
-                      style: TextStyle(
-                          color: AppColors.blue500,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 10),
-                  Text(formatIdr(_amount(r['total_amount'])),
-                      style: const TextStyle(
-                          color: AppColors.orange500,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 24),
-                  _info(
-                      'Date',
-                      '${r['needed_by'] ?? r['created_at'] ?? ''}'
-                          .split('T')
-                          .first),
-                  Container(
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFEDEFFC),
-                          border: Border.all(color: AppColors.blue500),
-                          borderRadius: BorderRadius.circular(18)),
-                      child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.auto_awesome_outlined,
-                                color: AppColors.blue500, size: 22),
-                            const SizedBox(width: 12),
+                child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                    children: [
+                      IntrinsicHeight(
+                          child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
                             Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                  const Text('AI Analysis',
+                                child: Column(children: [
+                              Text('${r['display_id'] ?? 'Invoice'}',
+                                  style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.blue900)),
+                              const SizedBox(height: 24),
+                              Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 4),
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF4E8),
+                                      border: Border.all(
+                                          color: AppColors.orange500),
+                                      borderRadius: BorderRadius.circular(4)),
+                                  child: const Text('Purchase',
                                       style: TextStyle(
-                                          color: AppColors.blue500,
-                                          fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                      '${r['ai_analysis']?['summary'] ?? 'Analysis unavailable. Review the invoice details manually.'}',
-                                      style: const TextStyle(
-                                          color: AppColors.blue500,
-                                          height: 1.5,
-                                          fontSize: 12)),
-                                ])),
+                                          color: AppColors.orange500))),
+                            ])),
+                            const VerticalDivider(width: 24),
+                            Expanded(
+                                child: Column(children: [
+                              const Text('Requested By',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.blue900)),
+                              const SizedBox(height: 10),
+                              ClipOval(
+                                  child: _requesterAvatar(
+                                      r['requester']?['avatar_url'])),
+                              const SizedBox(height: 8),
+                              Text(
+                                  "${r['requester']?['name'] ?? 'Employee'} - Employee",
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: AppColors.blue500,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12)),
+                            ])),
                           ])),
-                  if (r['rejection_reason'] != null)
-                    _info('Rejection Reason', r['rejection_reason']),
-                  if (r['paid_at'] != null) ...[
-                    if (r['receipt_due_at'] != null)
-                      _info('Receipt Due', r['receipt_due_at']),
-                    if (r['receipt_review_reason'] != null)
-                      _info('Owner Review', r['receipt_review_reason']),
-                    if (r['receipt'] != null)
-                      OutlinedButton.icon(
-                          onPressed: () => _file(
-                              '${r['receipt']['download_url']}',
-                              '${r['receipt']['file_name']}'),
-                          icon: const Icon(Icons.receipt_long),
-                          label: Text('${r['receipt']['file_name']}')),
-                    if (r['receipt_note'] != null)
-                      _info('Receipt Explanation', r['receipt_note'])
-                  ],
-                  if (!widget.owner &&
-                      r['paid_at'] == null &&
-                      r['payment_executor'] == 'EMPLOYEE_PAYMENT' &&
-                      ['PENDING_APPROVAL', 'APPROVED']
-                          .contains(r['status'])) ...[
-                    const Text(
-                        'This older request has not been paid. Attach an invoice and send it again for your owner to approve and pay.'),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                        onPressed: () async {
-                          await Navigator.push(
-                              context,
-                              MaterialPageRoute<void>(
-                                  builder: (_) => PurchaseRequestFormScreen(
-                                      initialRequest: r)));
-                          await _load();
-                        },
-                        child: const Text('Complete Invoice Request')),
-                  ],
-                  if (!widget.owner &&
-                      r['paid_at'] != null &&
-                      r['status'] == 'APPROVED' &&
-                      r['receipt_status'] != 'RECEIPT_SUBMITTED') ...[
-                    if (widget.receiptOnly) ...[
-                      AppFormField(
-                          controller: _note,
-                          maxLines: 3,
-                          decoration: const AppInputDecoration(
-                              labelText: 'Receipt Explanation')),
+                      const SizedBox(height: 20),
+                      if (r['paid_at'] != null) ...[
+                        Text(
+                            r['payment_executor'] == 'OWNER_PAYMENT'
+                                ? 'Paid by Owner'
+                                : 'Payment Completed',
+                            style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 16),
+                      ] else if (r['payment_executor'] ==
+                          'EMPLOYEE_PAYMENT') ...[
+                        const Text(
+                            'Invoice required: this older request has not been paid.',
+                            style: TextStyle(color: AppColors.orange500)),
+                        const SizedBox(height: 16),
+                      ],
+                      _info('Document Explanation', r['explanation']),
+                      const SizedBox(height: 10),
+                      const Text('Document',
+                          style: TextStyle(
+                              color: AppColors.blue500,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 14),
+                      if ((r['documents'] as List? ?? []).isEmpty)
+                        const Text('No invoice attached.'),
+                      for (final d in (r['documents'] as List? ?? []))
+                        if ('${d['id']}' != '${r['receipt']?['id']}')
+                          Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              decoration: BoxDecoration(
+                                  border: Border.all(color: AppColors.grey50),
+                                  borderRadius: BorderRadius.circular(20)),
+                              child: ListTile(
+                                  leading: Icon(Icons.picture_as_pdf_outlined,
+                                      color: '${d['mime_type']}'.contains('pdf')
+                                          ? Colors.red
+                                          : AppColors.blue500),
+                                  title: Text('${d['original_filename']}',
+                                      overflow: TextOverflow.ellipsis),
+                                  subtitle: Text('${d['created_at'] ?? ''}'
+                                      .split('T')
+                                      .first),
+                                  trailing: IconButton(
+                                      icon: const Icon(Icons.download_outlined,
+                                          color: AppColors.blue500),
+                                      onPressed: () => _file(
+                                          '${d['download_url']}',
+                                          '${d['original_filename']}')))),
                       const SizedBox(height: 12),
-                      FilledButton.icon(
-                          onPressed: _busy ? null : _receipt,
-                          icon: const Icon(Icons.upload_file),
-                          label:
-                              Text(_busy ? 'Uploading...' : 'Upload Receipt'))
-                    ] else
-                      FilledButton.icon(
-                          onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute<void>(
-                                  builder: (_) => const HistoryScreen())),
-                          icon: const Icon(Icons.history),
-                          label: const Text('Upload Receipt in History')),
-                  ],
-                  if (widget.owner &&
-                      r['receipt_status'] == 'RECEIPT_SUBMITTED') ...[
-                    FilledButton(
-                        onPressed: () => _review(true),
-                        child: const Text('Verify & Close')),
-                    OutlinedButton(
-                        onPressed: () => _review(false),
-                        child: const Text('Needs Clarification'))
-                  ],
-                  if (_error != null)
-                    Text(_error!,
-                        style: const TextStyle(color: AppColors.red500)),
-                ])));
+                      _info('Party Name', r['party_name']),
+                      const Text('Amount',
+                          style: TextStyle(
+                              color: AppColors.blue500,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      Text(formatIdr(_amount(r['total_amount'])),
+                          style: const TextStyle(
+                              color: AppColors.orange500,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 24),
+                      _info(
+                          'Date',
+                          '${r['needed_by'] ?? r['created_at'] ?? ''}'
+                              .split('T')
+                              .first),
+                      if (widget.owner)
+                        Container(
+                            padding: const EdgeInsets.all(16),
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                                color: const Color(0xFFEDEFFC),
+                                border: Border.all(color: AppColors.blue500),
+                                borderRadius: BorderRadius.circular(18)),
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.auto_awesome_outlined,
+                                      color: AppColors.blue500, size: 22),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                        const Text('AI Analysis',
+                                            style: TextStyle(
+                                                color: AppColors.blue500,
+                                                fontWeight: FontWeight.w700)),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                            '${r['ai_analysis']?['summary'] ?? 'Analysis unavailable. Review the invoice details manually.'}',
+                                            style: const TextStyle(
+                                                color: AppColors.blue500,
+                                                height: 1.5,
+                                                fontSize: 12)),
+                                      ])),
+                                ])),
+                      if (r['rejection_reason'] != null)
+                        _info('Rejection Reason', r['rejection_reason']),
+                      if (r['paid_at'] != null) ...[
+                        if (r['receipt_due_at'] != null)
+                          _info('Receipt Due', r['receipt_due_at']),
+                        if (r['receipt_review_reason'] != null)
+                          _info('Owner Review', r['receipt_review_reason']),
+                        if (r['receipt'] != null)
+                          OutlinedButton.icon(
+                              onPressed: () => _file(
+                                  '${r['receipt']['download_url']}',
+                                  '${r['receipt']['file_name']}'),
+                              icon: const Icon(Icons.receipt_long),
+                              label: Text('${r['receipt']['file_name']}')),
+                        if (r['receipt_note'] != null)
+                          _info('Receipt Explanation', r['receipt_note'])
+                      ],
+                      if (!widget.owner &&
+                          r['paid_at'] == null &&
+                          r['payment_executor'] == 'EMPLOYEE_PAYMENT' &&
+                          ['PENDING_APPROVAL', 'APPROVED']
+                              .contains(r['status'])) ...[
+                        const Text(
+                            'This older request has not been paid. Attach an invoice and send it again for your owner to approve and pay.'),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                            onPressed: () async {
+                              await Navigator.push(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                      builder: (_) => PurchaseRequestFormScreen(
+                                          initialRequest: r)));
+                              await _load();
+                            },
+                            child: const Text('Complete Invoice Request')),
+                      ],
+                      if (!widget.owner &&
+                          r['paid_at'] != null &&
+                          r['status'] == 'APPROVED' &&
+                          r['receipt_status'] != 'RECEIPT_SUBMITTED') ...[
+                        if (widget.receiptOnly) ...[
+                          AppFormField(
+                              controller: _note,
+                              maxLines: 3,
+                              decoration: const AppInputDecoration(
+                                  labelText: 'Receipt Explanation')),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                              onPressed: _busy ? null : _receipt,
+                              icon: const Icon(Icons.upload_file),
+                              label: Text(
+                                  _busy ? 'Uploading...' : 'Upload Receipt'))
+                        ] else
+                          FilledButton.icon(
+                              onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                      builder: (_) => const HistoryScreen())),
+                              icon: const Icon(Icons.history),
+                              label: const Text('Upload Receipt in History')),
+                      ],
+                      if (_error != null)
+                        Text(_error!,
+                            style: const TextStyle(color: AppColors.red500)),
+                    ])));
   }
 
   Widget _requesterAvatar(dynamic value) {

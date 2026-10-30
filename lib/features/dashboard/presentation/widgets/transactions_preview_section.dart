@@ -1,7 +1,9 @@
-import '../../../../shared/widgets/app_search_bar.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/app_search_bar.dart';
 import '../../data/dashboard_model.dart';
 import 'summary_card.dart';
 
@@ -28,6 +30,7 @@ class _TransactionsPreviewSectionState
     extends State<TransactionsPreviewSection> {
   final _searchController = TextEditingController();
   String _query = '';
+  int _page = 0;
 
   @override
   void dispose() {
@@ -37,12 +40,14 @@ class _TransactionsPreviewSectionState
 
   @override
   Widget build(BuildContext context) {
-    final visible = widget.transactions
+    final filtered = widget.transactions
         .where((item) => '${item.merchant} ${item.category}'
             .toLowerCase()
             .contains(_query.toLowerCase()))
-        .take(3)
         .toList();
+    final pages = math.max(1, (filtered.length / 2).ceil());
+    final page = math.min(_page, pages - 1);
+    final visible = filtered.skip(page * 2).take(2).toList();
 
     return SummaryCard(
       icon: Icons.receipt_long_outlined,
@@ -65,7 +70,10 @@ class _TransactionsPreviewSectionState
                   height: 42,
                   child: AppSearchBar(
                       controller: _searchController,
-                      onChanged: (value) => setState(() => _query = value),
+                      onChanged: (value) => setState(() {
+                        _query = value;
+                        _page = 0;
+                      }),
                       hint: 'Search Transaction...'),
                 ),
               ),
@@ -109,31 +117,38 @@ class _TransactionsPreviewSectionState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                onPressed: null,
+                tooltip: 'Previous page',
+                onPressed:
+                    page == 0 ? null : () => setState(() => _page = page - 1),
+                color: AppColors.blue500,
+                disabledColor: AppColors.blue200,
                 icon: const Icon(Icons.chevron_left),
               ),
+              const SizedBox(width: 12),
               Container(
-                width: 38,
-                height: 42,
-                alignment: Alignment.center,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.blue500,
-                  borderRadius: BorderRadius.circular(9),
+                  color: AppColors.blue600,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  '1',
-                  style: TextStyle(
-                    color: AppColors.white,
+                child: Text(
+                  '${page + 1}',
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
+              const SizedBox(width: 12),
               IconButton(
-                onPressed: widget.onViewAll,
-                icon: const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.blue500,
-                ),
+                tooltip: 'Next page',
+                onPressed: page + 1 >= pages
+                    ? null
+                    : () => setState(() => _page = page + 1),
+                color: AppColors.blue500,
+                disabledColor: AppColors.blue200,
+                icon: const Icon(Icons.chevron_right),
               ),
             ],
           ),

@@ -7,6 +7,15 @@ import '../../features/document/presentation/purchase_requests_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // Android may already have initialized the native Firebase app.
+  }
+}
+
 bool shouldDisplayRequestNotification(String title, String? role) {
   final normalizedTitle = title.toLowerCase();
   final rejected = normalizedTitle.contains('rejected') ||
@@ -31,39 +40,44 @@ class PushNotificationService {
         apiKey = String.fromEnvironment('FIREBASE_API_KEY'),
         senderId = String.fromEnvironment('FIREBASE_SENDER_ID'),
         projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-    if (appId.isNotEmpty &&
-        apiKey.isNotEmpty &&
-        senderId.isNotEmpty &&
-        projectId.isNotEmpty) {
-      try {
+    try {
+      if (appId.isNotEmpty &&
+          apiKey.isNotEmpty &&
+          senderId.isNotEmpty &&
+          projectId.isNotEmpty) {
         await Firebase.initializeApp(
             options: const FirebaseOptions(
                 apiKey: apiKey,
                 appId: appId,
                 messagingSenderId: senderId,
                 projectId: projectId));
-        _enabled = true;
-        FirebaseMessaging.onMessage.listen((message) {
-          final id = message.data['notification_id'];
-          if (id != null) _seen.add(id);
-          _show(message.notification?.title ?? 'Purchase Request',
-              message.notification?.body ?? '', message.data['request_id']);
-        });
-        FirebaseMessaging.onMessageOpenedApp
-            .listen((message) => _open(message.data['request_id']));
-        FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
-          _deviceToken = token;
-          try {
-            if (await ApiClient.instance.hasSession)
-              await ApiClient.instance.dio
-                  .post('/notifications/devices', data: {'token': token});
-          } catch (_) {}
-        });
-        final initial = await FirebaseMessaging.instance.getInitialMessage();
-        _pendingRequest = initial?.data['request_id'];
-      } catch (_) {
-        _enabled = false;
+      } else {
+        // Android/iOS can load Firebase options generated from their native
+        // google-services/GoogleService-Info configuration at build time.
+        await Firebase.initializeApp();
       }
+      _enabled = true;
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onMessage.listen((message) {
+        final id = message.data['notification_id'];
+        if (id != null) _seen.add(id);
+        _show(message.notification?.title ?? 'Purchase Request',
+            message.notification?.body ?? '', message.data['request_id']);
+      });
+      FirebaseMessaging.onMessageOpenedApp
+          .listen((message) => _open(message.data['request_id']));
+      FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+        _deviceToken = token;
+        try {
+          if (await ApiClient.instance.hasSession)
+            await ApiClient.instance.dio
+                .post('/notifications/devices', data: {'token': token});
+        } catch (_) {}
+      });
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      _pendingRequest = initial?.data['request_id'];
+    } catch (_) {
+      _enabled = false;
     }
     // In-app inbox updates also work before Firebase is configured.
     _timer ??= Timer.periodic(const Duration(seconds: 10), (_) => _poll());
@@ -138,7 +152,8 @@ class PushNotificationService {
   }
 
   Future<void> _show(String title, String body, String? requestId) async {
-    if (!shouldDisplayRequestNotification(title, await ApiClient.instance.role)) {
+    if (!shouldDisplayRequestNotification(
+        title, await ApiClient.instance.role)) {
       return;
     }
     final overlay = appNavigatorKey.currentState?.overlay;

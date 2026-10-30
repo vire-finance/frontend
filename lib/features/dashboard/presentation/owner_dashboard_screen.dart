@@ -213,28 +213,27 @@ class _DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-            ownerName == null || ownerName!.trim().isEmpty
-                ? 'Hi!'
-                : 'Hi, ${ownerName!.trim()}!',
-            style: const TextStyle(
-                color: AppColors.orange400,
-                fontSize: 14,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Row(children: [
-          Image.asset('assets/images/Regular Images/Logo - V.png',
-              width: 30,
-              height: 30,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(Icons.flutter_dash,
-                  color: AppColors.blue500, size: 30)),
-          const Spacer(),
-          IconButton(
-              onPressed: onNotifications,
-              tooltip: 'Notifications',
-              icon: const Icon(Icons.notifications, color: AppColors.blue500))
-        ]),
+      Row(children: [
+        Image.asset('assets/images/Regular Images/Logo - V.png',
+            width: 30,
+            height: 30,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(Icons.flutter_dash,
+                color: AppColors.blue500, size: 30)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+              ownerName == null || ownerName!.trim().isEmpty
+                  ? 'Hi!'
+                  : 'Hi, ${ownerName!.trim()}!',
+              style: const TextStyle(
+                  color: AppColors.orange400,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
+        ),
+        IconButton(
+            onPressed: onNotifications,
+            tooltip: 'Notifications',
+            icon: const Icon(Icons.notifications, color: AppColors.blue500))
       ]);
 }

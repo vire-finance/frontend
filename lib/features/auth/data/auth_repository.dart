@@ -69,6 +69,7 @@ class AuthRepository {
           ? 'Token Google tidak tersedia. Coba login Google kembali.'
           : 'Token Google tidak tersedia. Periksa OAuth Client ID dan SHA-1 Android.');
     }
+    _api.beginSessionSwitch();
     final response = await _api.dio.post<Map<String, dynamic>>('/auth/google',
         data: {'id_token': token}, options: Options(extra: {'skipAuth': true}));
     final data = response.data!;
@@ -88,6 +89,7 @@ class AuthRepository {
     required String password,
     required String confirmPassword,
   }) async {
+    _api.beginSessionSwitch();
     final response = await _api.dio.post<Map<String, dynamic>>(
       '/auth/register',
       data: {
@@ -112,6 +114,7 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> login(
       {required String email, required String password}) async {
+    _api.beginSessionSwitch();
     final response = await _api.dio.post<Map<String, dynamic>>(
       '/auth/login',
       data: {'email': email.trim(), 'password': password},

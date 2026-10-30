@@ -1,12 +1,12 @@
 # VIRE frontend — build & deploy notes
 
-## API base URL (required for any non-local build)
+## API base URL
 
 The base URL is baked in at compile time via
 `String.fromEnvironment('VIRE_API_BASE_URL')`
 (`lib/core/network/api_client.dart`). There is no runtime config file.
-A build without the flag silently targets `http://localhost:8000`
-(web/desktop) or `http://10.0.2.2:8000` (Android emulator).
+Debug builds without the flag target the local backend. Release builds without the flag target the Render backend below;
+set VIRE_API_BASE_URL explicitly to override either default.
 
 ```powershell
 # Local backend
@@ -22,6 +22,12 @@ flutter build web --release `
 The backend must list the deployed web origin in its `CORS_ORIGINS`
 Render variable, or authenticated web calls fail preflight.
 
+
+## Render website deployment
+
+The Render Blueprint in `render.yaml` publishes a landing page at `/`, the Flutter app at `/app.html`, and the Android installer at `/downloads/vire.apk`. The build script pins Flutter 3.47.6 and builds the web app with the Render backend URL as its release default.
+
+Before first publish, add the website origin to the backend Render service's `CORS_ORIGINS` and to the Google OAuth Web client as an Authorized JavaScript origin. For Android Google sign-in, the Android OAuth client must match package `com.example.vire` and the signing certificate SHA-1; the Android and Web OAuth clients must be in the same Google Cloud project.
 ## Firebase config
 
 Copy `firebase-config.example.json` to `firebase-config.json` and fill in

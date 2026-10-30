@@ -127,8 +127,8 @@ class _ModalFrame extends StatelessWidget {
                                   height: 128,
                                   fit: BoxFit.contain),
                               Positioned(
-                                  right: -20,
-                                  top: -6,
+                                  right: 0,
+                                  top: 0,
                                   child: IconButton(
                                       tooltip: 'Close',
                                       onPressed: () => Navigator.pop(context),
